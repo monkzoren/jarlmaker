@@ -1,0 +1,23 @@
+{
+  "name": "bastion",
+  "private": true,
+  "description": "Jarlmaker (codename Bastion 2.0) monorepo",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "tasks:validate": "pnpm --filter @bastion/tasks run cli validate",
+    "tasks:board": "pnpm --filter @bastion/tasks run cli board",
+    "tasks:next": "pnpm --filter @bastion/tasks run cli next",
+    "tasks:claim": "pnpm --filter @bastion/tasks run cli claim",
+    "tasks:status": "pnpm --filter @bastion/tasks run cli status"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
