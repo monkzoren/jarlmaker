@@ -17,12 +17,13 @@ export const tryGit = (git: Git, args: string[]): string | undefined => {
   }
 }
 
-/** The remote default-branch ref (`origin/main`), if the remote has one. */
+/**
+ * The ledger's base ref: `origin/main` (or `origin/master`), falling back to the
+ * remote's default branch. `main` wins even when GitHub's default points elsewhere.
+ */
 export function baseRef(git: Git): string | undefined {
-  const head = tryGit(git, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'])
-  if (head) return head
   for (const r of ['origin/main', 'origin/master']) if (tryGit(git, ['rev-parse', '--verify', '--quiet', r])) return r
-  return undefined
+  return tryGit(git, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'])
 }
 
 /** Task files as they exist at a git ref. */
