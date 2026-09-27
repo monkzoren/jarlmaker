@@ -21,7 +21,7 @@ Phase 5 is closed: its Section 5 definition of done holds on `main`, verified by
 - [ ] The optimal-newbie script hits the pacing targets (`pnpm test` includes it)
 - [ ] Every node teaches: contentlint fails a node without `teach`, and is green
 - [ ] Daily determinism and streak tests pass
-- [ ] The "Saga" naming collision (ADR 0004 gap 2) is resolved by a decision record before quest content ships
+- [ ] The player-facing Book shows Sagas (main quest lines) built from tasks/achievements, per ADR 0007
 - [ ] Every other P5 task is `done` on `main` (`pnpm tasks:board` shows P5 complete)
 - [ ] Maintainer playtest (20 min) recorded under `## P5` in `docs/FEEDBACK.md`
 - [ ] Planner run for the next phase scheduled (CLAUDE.md 7.1, phase-boundary re-run)

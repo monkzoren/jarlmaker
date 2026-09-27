@@ -34,8 +34,11 @@ How the premise maps onto the framework, so no system invents its own story:
 - **The longship = the endgame structure and the run loop.** Rebuilding it
   is the late progression sink; each voyage from it is an instanced
   roguelike run (3.5.5). "Going home" is the hook, not the end.
-- **Seasons are "Sagas"** in the live-ops calendar (3.5.11), so the
-  title and the event naming reinforce each other.
+- **The Book, Sagas, and tasks** (ADR 0007). Player-facing, the story is a
+  **Book** filled by **Sagas**. A Saga is a traditional main quest line (the
+  lost crew, the longship). Sagas are built from **tasks and achievements**
+  (ordinary quests and objectives). Seasons are *not* Sagas; player-facing
+  they are **Seasons** (the Harvest Season) until the maintainer names them.
 - **Tone:** grounded Norse frontier, not mythic fantasy on the cover.
   Myth arrives through the seasons and the deep rings, never on night one.
 
@@ -72,7 +75,7 @@ Jarl."*
 | Client | PixiJS v8 (WebGL2/WebGPU), Vite, no UI framework for HUD (lit-html for panels) | The renderer is a *view* of a snapshot. |
 | Schemas | Zod | Every content file and every network payload is validated at load. |
 | Tests | Vitest (unit), Playwright (smoke), custom balance harness | All run in CI on every PR; merge is gated. |
-| Art | Aseprite source → `tools/atlas` → packed atlases + JSON | 16px tiles, locked 64-colour palette. Optional Pixel Lab generation into the same pipeline. |
+| Art | Agent-authored text pixel sources (palette-indexed grids) → `tools/atlas` → packed atlases + JSON | 16px tiles, locked 64-colour palette. The agents draw the art (ADR 0007). PNG/Aseprite input stays supported for later hand art. No Pixel Lab. |
 | Audio | Howler.js | Sound banks are content files. |
 | Lint | ESLint + custom rules (`no-tick-scan`, `no-tunable-literal`, `max-file-lines`) | The custom rules are the architecture police. |
 
@@ -480,8 +483,11 @@ QuestDef {
   The four **rank nodes** (Castaway, Hearthkeeper, Chieftain, Jarl) are the
   tree's spine: every other node is reachable from the rank below it, and
   each rank grants a `title` cosmetic (3.5.12) so the name is worn.
-- **Sagas** = long quest chains with chapters; chapters are ordinary quests
-  with `availability.quests` on the previous chapter. No special engine.
+- **Sagas** = the main quest lines that fill the player's **Book** (ADR 0007).
+  A Saga is a chain of chapters, and chapters are ordinary quests (the
+  player-facing "tasks and achievements") with `availability.quests` on the
+  previous chapter. No special engine. Individual and side quests are never
+  called Sagas.
 - Procedural side quests: `content/quests/templates/*.ts` with slots
   (`{item}`, `{count}`, `{poi}`) filled by the spawn director from the
   player's ring and biome; deterministic from `(player, day)`.
@@ -563,8 +569,8 @@ season, built as *data over the quest engine* so no second engine exists.
 
 **Data — seasons and events.**
 - `content/seasons/*.ts`: `{id, name, starts, ends, theme, currency,
-  track, chain, activates}`. Player-facing, a season is a **Saga** (the
-  Harvest Saga, the Frost Saga); the code keeps `season`. `activates` lists content ids or tags that are
+  track, chain, activates}`. Player-facing, a season is a **Season** (the
+  Harvest Season); never a "Saga", which names main quest lines (ADR 0007). `activates` lists content ids or tags that are
   live only during the season (enemy variants, POIs, recipes, cosmetics,
   biome dressing). Any content entry may carry `season: 'harvest'`; it is
   inert outside its window.
@@ -575,7 +581,7 @@ season, built as *data over the quest engine* so no second engine exists.
   A premium track is allowed only if every reward on it is a cosmetic
   (contentlint enforces). Event currency drops from tagged activities and
   expires with the season (converted to soft currency, tuning ratio).
-- The **event chain** is an ordinary saga (3.5.6) with `availability.season`.
+- The **event chain** is an ordinary quest chain (3.5.6) with `availability.season`; it is not a Saga.
 - Recurrence: a season file may declare `recurs: 'yearly'`; the calendar
   reducer re-instances it with a fresh `season_state`, so last year's
   progress never bleeds in.
@@ -695,8 +701,9 @@ renderer, and a `HOWTO.md` update.
 - Tunables live *only* in `content/tuning`. ESLint rule `no-tunable-literal`
   fails a numeric literal in `core/src/**/rules.ts` and `tick.ts` other than
   0, 1, -1, and array indices.
-- Art: Aseprite files in `art/` (git LFS), `pnpm atlas` packs them. Optional
-  Pixel Lab generation writes into `art/generated/` through the same packer.
+- Art: agents author sprites as text pixel sources in `art/` (palette-indexed
+  character grids, diffable, no LFS needed); `pnpm atlas` packs them. PNG and
+  Aseprite files are also accepted for future hand-drawn art (ADR 0007).
 - A visual **content editor is Phase 7**; until then the typed data files
   plus `tools/worldview` and the balance report are the authoring tools.
 
@@ -967,7 +974,7 @@ player can see on your sprite.
 themed event chain, activated variants and recipes, event currency, a free
 reward track, 10 seasonal cosmetics, `recurs: 'yearly'`), all 14 cosmetic
 categories with 100+ cosmetics, the in-browser content editor over the typed
-data, Pixel Lab hook. *Done when*: contentlint and balance stay green at
+data. *Done when*: contentlint and balance stay green at
 that scale, the season flips live and dead cleanly in the smoke suite, and
 the editor round-trips every content file byte-identically.
 
