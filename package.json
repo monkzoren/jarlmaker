@@ -7,13 +7,24 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "node -e \"console.log('lint: no checks yet')\"",
+    "contentlint": "node -e \"console.log('contentlint: no checks yet')\"",
+    "balance": "node -e \"console.log('balance: no checks yet')\"",
+    "replay": "node -e \"console.log('replay: no checks yet')\"",
+    "smoke": "node -e \"console.log('smoke: no checks yet')\"",
+    "worldgold": "node -e \"console.log('worldgold: no checks yet')\"",
     "tasks:validate": "pnpm --filter @bastion/tasks run cli validate",
     "tasks:board": "pnpm --filter @bastion/tasks run cli board",
     "tasks:next": "pnpm --filter @bastion/tasks run cli next",
     "tasks:claim": "pnpm --filter @bastion/tasks run cli claim",
     "tasks:status": "pnpm --filter @bastion/tasks run cli status"
+  },
+  "devDependencies": {
+    "turbo": "2.11.4",
+    "typescript": "5.9.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
