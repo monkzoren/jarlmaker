@@ -1,9 +1,11 @@
 /**
- * The one SpacetimeDB connection. Connects with the stored token (same
- * identity across reloads), subscribes to the public entity tables, mirrors
- * their rows into a `SnapshotStore`, and calls `join` once the first
- * subscription has applied. Reconnect and command replay are P0-016; this
- * module reports a drop and stops.
+ * The SpacetimeDB connection. Each link connects with the stored token (same
+ * identity across reloads and reconnects), subscribes to the public entity
+ * tables, and mirrors their rows into the one `SnapshotStore`. When the
+ * subscription applies, the snapshot is reconciled against the server's rows
+ * (rows deleted during a dropout go away; nothing is reloaded). The
+ * reconnector (reconnect.ts) owns the link: it opens a new one after a drop,
+ * replays queued moves, and sends `join`.
  *
  * `world_clock` is mirrored one microtask late, on purpose. The SDK applies a
  * whole websocket frame (possibly several server messages) synchronously and
@@ -11,10 +13,12 @@
  * handler that reads `snapshot.clock` sees the tick the server was on when
  * that move committed, not a later tick from the same frame (predict.ts).
  */
+import { MS_PER_SECOND } from '@bastion/core'
 import { DbConnection, type ErrorContext } from './bindings/index.ts'
 import type { NetConfig } from './config.ts'
 import type { NonceSource } from './nonce.ts'
 import type { SnapshotStore } from './snapshot.ts'
+import { createReconnector, RECONNECT_TIMING, type Link, type LinkHandlers, type PhaseInfo, type Timers } from './reconnect.ts'
 import type { ConnState } from './status.ts'
 import { loadToken, saveToken, type TokenStorage } from './token.ts'
 
@@ -27,72 +31,138 @@ export interface NetDeps {
   readonly snapshot: SnapshotStore
   readonly nonces: NonceSource
   readonly storage: TokenStorage | undefined
+  /** `tuning.net`: how long and how many moves to queue during a dropout. */
+  readonly queue: { readonly seconds: number; readonly max: number }
   readonly onState: (s: ConnState) => void
-  /** Called once the `join` reducer has committed: moves are accepted from now on. */
+  /** Called each time the `join` reducer commits (first connect and every reconnect). */
   readonly onJoined?: (identity: string) => void
+  /** The dropout outlived the queue; `dropped` moves were discarded. */
+  readonly onQueueDropped?: (dropped: number) => void
+  readonly timers?: Timers
 }
 
 export interface Net {
-  readonly conn: DbConnection
-  /** Send `entity.move`; resolves when the server commits it, rejects when it refuses. */
+  /** Send `entity.move`, queued across dropouts; resolves when the server commits it, rejects when it refuses. */
   move(nonce: number, ix: number, iy: number): Promise<void>
   disconnect(): void
 }
 
 export function connect(deps: NetDeps): Net {
-  const { config, snapshot, nonces, storage, onState, onJoined } = deps
+  const { config, snapshot, nonces, queue, onState, onJoined, onQueueDropped } = deps
   let identity = ''
+  let phase: PhaseInfo['phase'] = 'connecting'
   const report = (): void => {
-    if (identity !== '') onState({ kind: 'joined', identity, entities: snapshot.size })
+    if (phase === 'online' && identity !== '') onState({ kind: 'joined', identity, entities: snapshot.size })
   }
-  let joined = false
+  snapshot.onChange(report)
 
-  onState({ kind: 'connecting', uri: config.uri })
+  const reconnector = createReconnector({
+    transport: (h) => openLink(deps, h, (id) => (identity = id)),
+    nonces,
+    knobs: { queueMs: queue.seconds * MS_PER_SECOND, queueMax: queue.max, ...RECONNECT_TIMING },
+    timers: deps.timers ?? { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
+    onPhase: (info) => {
+      phase = info.phase
+      switch (info.phase) {
+        case 'connecting':
+          onState({ kind: 'connecting', uri: config.uri })
+          return
+        case 'online':
+          report()
+          return
+        case 'dropped':
+          onState({ kind: 'dropped', queued: info.queued, attempt: info.attempt, reason: info.reason })
+          return
+        case 'reconnecting':
+          onState({ kind: 'reconnecting', queued: info.queued, attempt: info.attempt })
+          return
+        case 'closed':
+          onState({ kind: 'disconnected' })
+      }
+    },
+    onJoined: (id) => {
+      report()
+      onJoined?.(id)
+    },
+    onExpired: (dropped) => onQueueDropped?.(dropped),
+    onError: (reason) => onState({ kind: 'error', reason }),
+  })
+
+  return {
+    move: (nonce, ix, iy) => reconnector.move(nonce, ix, iy),
+    disconnect: () => reconnector.close(),
+  }
+}
+
+/** One socket: connect, subscribe, mirror rows, reconcile on apply. */
+function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => void): Link {
+  const { config, snapshot, storage, onState } = deps
+  // Row callbacks from a link the reconnector has abandoned must not touch the snapshot.
+  let live = true
   const conn = DbConnection.builder()
     .withUri(config.uri)
     .withDatabaseName(config.moduleName)
     .withToken(loadToken(storage, config.tokenKey))
     .onConnect((c, id, token) => {
+      if (!live) return
       saveToken(storage, config.tokenKey, token)
-      identity = id.toHexString()
+      const identity = id.toHexString()
+      setIdentity(identity)
       onState({ kind: 'connected', identity })
       c.subscriptionBuilder()
         .onApplied(() => {
-          if (joined) return
-          joined = true
-          c.reducers.join({ nonce: nonces.next() }).then(
-            () => {
-              report()
-              onJoined?.(identity)
-            },
-            (e: unknown) => {
-              onState({ kind: 'error', reason: `join refused: ${message(e)}` })
-            },
-          )
-          report()
+          if (!live) return
+          snapshot.replace([...c.db.entity.iter()], [...c.db.entityPos.iter()])
+          h.ready(identity)
         })
-        .onError((ctx: ErrorContext) => onState({ kind: 'error', reason: `subscription: ${message(ctx.event)}` }))
+        .onError((ctx: ErrorContext) => {
+          if (live) h.lost(`subscription: ${message(ctx.event)}`)
+        })
         .subscribe([...SUBSCRIPTIONS])
     })
-    .onConnectError((_ctx, err) => onState({ kind: 'error', reason: message(err) }))
-    .onDisconnect((_ctx, err) => onState({ kind: 'disconnected', reason: err === undefined ? undefined : message(err) }))
+    .onConnectError((_ctx, err) => {
+      if (live) h.lost(message(err))
+    })
+    .onDisconnect((_ctx, err) => {
+      if (live) h.lost(err === undefined ? undefined : message(err))
+    })
     .build()
 
-  conn.db.entity.onInsert((_ctx, row) => snapshot.upsertEntity(row))
-  conn.db.entity.onUpdate((_ctx, _old, row) => snapshot.upsertEntity(row))
-  conn.db.entity.onDelete((_ctx, row) => snapshot.deleteEntity(row.id))
-  conn.db.entityPos.onInsert((_ctx, row) => snapshot.upsertPos(row))
-  conn.db.entityPos.onUpdate((_ctx, _old, row) => snapshot.upsertPos(row))
-  conn.db.entityPos.onDelete((_ctx, row) => snapshot.deletePos(row.id))
-  const clock = (row: { tick: number }): void => queueMicrotask(() => snapshot.setClock(row.tick))
+  conn.db.entity.onInsert((_ctx, row) => {
+    if (live) snapshot.upsertEntity(row)
+  })
+  conn.db.entity.onUpdate((_ctx, _old, row) => {
+    if (live) snapshot.upsertEntity(row)
+  })
+  conn.db.entity.onDelete((_ctx, row) => {
+    if (live) snapshot.deleteEntity(row.id)
+  })
+  conn.db.entityPos.onInsert((_ctx, row) => {
+    if (live) snapshot.upsertPos(row)
+  })
+  conn.db.entityPos.onUpdate((_ctx, _old, row) => {
+    if (live) snapshot.upsertPos(row)
+  })
+  conn.db.entityPos.onDelete((_ctx, row) => {
+    if (live) snapshot.deletePos(row.id)
+  })
+  const clock = (row: { tick: number }): void => {
+    if (!live) return
+    h.alive()
+    queueMicrotask(() => {
+      if (live) snapshot.setClock(row.tick)
+    })
+  }
   conn.db.worldClock.onInsert((_ctx, row) => clock(row))
   conn.db.worldClock.onUpdate((_ctx, _old, row) => clock(row))
-  snapshot.onChange(report)
 
   return {
-    conn,
     move: (nonce, ix, iy) => conn.reducers.move({ nonce, ix, iy }),
-    disconnect: () => conn.disconnect(),
+    join: (nonce) => conn.reducers.join({ nonce }),
+    close: () => {
+      live = false
+      conn.disconnect()
+    },
   }
 }
 
