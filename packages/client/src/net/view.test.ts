@@ -109,7 +109,7 @@ describe('play: the command sink', () => {
       view: createView(KNOBS),
       nonces: createNonceSource(() => clock.shift() ?? 0),
       now: () => 0,
-      graceMs: 0,
+      graceMs: 500,
     })
     const cmd = (ix: number, iy: number) => ({ kind: 'entity.move' as const, ix, iy })
     play.sink.send({ nonce: 9, cmd: cmd(1, 0) })

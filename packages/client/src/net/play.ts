@@ -10,6 +10,12 @@
  * player stops predicting and holds still. On `joined` the predictor resyncs
  * to the server and the current stick is sent once, so the walk continues
  * from the server's position and nothing snaps back.
+ *
+ * A tunnel is silent for seconds before the reconnector declares the drop
+ * (`reconnectSilenceMs`), so the freeze also starts after `graceMs` with no
+ * server traffic at all (P0-046). Moves are not sent while it is that quiet.
+ * When traffic resumes on the same link, it is handled like a join: resync,
+ * then the current stick once.
  */
 import type { CommandSink } from '../input/index.ts'
 import type { RenderSnapshot } from '../render/index.ts'
@@ -26,7 +32,7 @@ export interface PlayDeps {
   readonly view: View
   readonly nonces: NonceSource
   readonly now: () => number
-  /** `tuning.net.offlineMoveGraceMs`: how long the own player still predicts after a drop. */
+  /** `tuning.net.offlineMoveGraceMs`: how long the own player still predicts after a drop or the last server traffic. */
   readonly graceMs: number
 }
 
@@ -37,6 +43,8 @@ export interface Play {
   joined(identity: string): void
   /** The connection dropped: stop sending moves, and freeze after the grace period. */
   dropped(): void
+  /** Any server traffic (a subscribed row, including `world_clock`): restarts the silence grace period. */
+  heard(): void
   /** One prediction tick; call every `dtMs`. */
   tick(): void
   /** What to draw now. */
@@ -57,8 +65,16 @@ export function createPlay(deps: PlayDeps): Play {
   let current: Stick | undefined
   let online = false
   let droppedAt: number | undefined
+  let heardAt: number | undefined
   let sampledClock = -1
   let last: RenderSnapshot | undefined
+
+  /** No server traffic for the grace period: the link may be dead before the reconnector knows it. */
+  const quiet = (): boolean => heardAt !== undefined && now() - heardAt >= graceMs
+  const resume = (): void => {
+    predictor.resync()
+    if (current !== undefined) send(current)
+  }
 
   const send = (stick: Stick): void => {
     const nonce = nonces.next()
@@ -75,23 +91,29 @@ export function createPlay(deps: PlayDeps): Play {
     sink: {
       send(envelope) {
         current = { ix: envelope.cmd.ix, iy: envelope.cmd.iy }
-        if (online) send(current)
+        if (online && !quiet()) send(current)
       },
     },
     joined(id) {
       identity = id
       online = true
       droppedAt = undefined
-      predictor.resync()
-      if (current !== undefined) send(current)
+      heardAt = now()
+      resume()
     },
     dropped() {
       if (!online) return
       online = false
       droppedAt = now()
     },
+    heard() {
+      const wasQuiet = quiet()
+      heardAt = now()
+      // After a drop, `joined` resumes; before one, the link came back by itself.
+      if (wasQuiet && online) resume()
+    },
     tick() {
-      if (droppedAt !== undefined && now() - droppedAt >= graceMs) return
+      if (quiet() || (droppedAt !== undefined && now() - droppedAt >= graceMs)) return
       const own = identity === undefined ? undefined : snapshot.playerPos(identity)
       const p = predictor.advance(own === undefined ? undefined : { tick: snapshot.clock, motion: own })
       if (own !== undefined && p !== undefined) view.local(String(own.id), p, now())
