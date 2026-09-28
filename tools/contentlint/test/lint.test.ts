@@ -15,15 +15,20 @@ describe('lintContent', () => {
   it('rejects the broken fixture with a readable path for each problem', () => {
     const { errors } = lintContent(broken)
     expect(errors).toEqual([
-      'tuning.world.pick: functions are not allowed in content',
+      'tuning.lintFunctions.pick: functions are not allowed in content',
       'tuning.lintFixture.speed: Too small: expected number to be >0',
     ])
   })
 
   it('warns about sections no system has registered', () => {
-    const { errors, warnings } = lintContent({ tuning: { lintFixture: { speed: 1 }, net: { tickHz: 10 } } })
+    // Built on the real content so every registered section is valid, whatever
+    // core registers; the unregistered section is this test's own.
+    const { errors, warnings } = lintContent({
+      ...content,
+      tuning: { ...content.tuning, lintFixture: { speed: 1 }, unregisteredFixture: { x: 1 } },
+    })
     expect(errors).toEqual([])
-    expect(warnings).toEqual(['tuning.net: no system has registered a schema for this section'])
+    expect(warnings).toContain('tuning.unregisteredFixture: no system has registered a schema for this section')
   })
 
   it('finds functions at any depth, including in arrays', () => {
@@ -49,6 +54,6 @@ describe('cli', () => {
   it('exits non-zero on the broken fixture and names the path', () => {
     const { status, stderr } = run('test/fixtures/broken.ts')
     expect(status).toBe(1)
-    expect(stderr).toContain('contentlint: error: tuning.world.pick: functions are not allowed in content')
+    expect(stderr).toContain('contentlint: error: tuning.lintFunctions.pick: functions are not allowed in content')
   })
 })

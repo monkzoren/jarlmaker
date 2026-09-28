@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import type { GameEvent } from '../events/index.ts'
 import { execute } from '../execute.ts'
+import { TUNING } from '../entity/fixture.test-util.ts'
 import { createGame } from '../game.ts'
 import { Registry } from '../registry.ts'
 import { MemoryStore } from '../store/memory.ts'
@@ -15,7 +16,8 @@ type TestEvent =
   | { readonly kind: 'test.echoed'; readonly tick: number; readonly by: string }
 const ev = (e: TestEvent): GameEvent => e as unknown as GameEvent
 
-const game = createGame({ tuning: {} })
+// Importing `tick.ts` registers every system's tuning sections (SYSTEM_TICKS).
+const game = createGame({ tuning: TUNING })
 
 function setup() {
   const store = new MemoryStore({ tables: [commandNonce, worldClock] })
