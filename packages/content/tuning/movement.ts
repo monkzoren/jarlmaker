@@ -8,4 +8,9 @@ export const movement = {
   // Acceleration to full speed. 32 cells/s² reaches `speed` in 1/8 s, so the
   // stick feels responsive without the sprite snapping to full speed.
   accel: 32,
+  // Longest single integration step, in ms. A server hiccup or a long client
+  // frame is split into steps this long, so one step moves under one cell
+  // (4 cells/s × 0.1 s = 0.4) and collision can never skip a wall. Equal to
+  // one tick at 10 Hz, so a normal tick is exactly one step.
+  maxStepMs: 100,
 }

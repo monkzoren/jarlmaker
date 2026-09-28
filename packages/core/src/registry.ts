@@ -25,12 +25,16 @@ export interface CommandContext {
   readonly game: Game
   readonly store: Store
   readonly sender: string
+  /** The current tick number (`world_clock`): the last tick run before this command. Stamp it on events. */
+  readonly tick: number
 }
 
 /** What an event handler sees. Its `store.emit` queues events for this same dispatch. */
 export interface EventContext {
   readonly game: Game
   readonly store: Store
+  /** The tick of the step being dispatched. Stamp it on events. */
+  readonly tick: number
 }
 
 interface Kinded {

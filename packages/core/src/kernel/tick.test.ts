@@ -4,6 +4,7 @@ import { createGame } from '../game.ts'
 import { Registry } from '../registry.ts'
 import { MemoryStore } from '../store/memory.ts'
 import { tick, type SystemTick } from '../tick.ts'
+import { worldClock } from './clock.ts'
 import { commandNonce } from './nonce.ts'
 
 type TestEvent = { readonly kind: 'test.ticked'; readonly tick: number; readonly system: string }
@@ -13,7 +14,7 @@ const game = createGame({ tuning: {} })
 
 describe('tick', () => {
   it('runs systems in list order, dispatching each step before the next system', () => {
-    const store = new MemoryStore({ tables: [commandNonce] })
+    const store = new MemoryStore({ tables: [commandNonce, worldClock] })
     const registry = new Registry<never, TestEvent>()
     const trace: string[] = []
     registry.on('test.ticked', (_ctx, e) => trace.push(`handled ${e.system}`))

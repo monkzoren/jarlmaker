@@ -7,9 +7,13 @@
 // per-tick work adds one entry here, with a comment saying why it sits where
 // it does. Systems whose work is event-driven (quests, progression) never
 // appear: they react through `onEvent`.
+//
+// Each call first advances the world clock (`kernel/clock.ts`) by one, so
+// every system and event handler in this call sees the same tick number.
 
 import type { Game } from './game.ts'
 import { dispatch } from './dispatch.ts'
+import { advanceTick } from './kernel/clock.ts'
 import { StepStore } from './kernel/step-store.ts'
 import { REGISTRY, type DispatchTable } from './registry.ts'
 import type { Store } from './store/types.ts'
@@ -17,6 +21,8 @@ import type { Store } from './store/types.ts'
 export interface TickContext {
   readonly game: Game
   readonly store: Store
+  /** This tick's number (`world_clock`), advanced before the first system runs. Stamp it on events. */
+  readonly tick: number
   /** Milliseconds since the previous tick. */
   readonly dtMs: number
 }
@@ -43,9 +49,10 @@ export interface TickOptions {
 export function tick(game: Game, store: Store, dtMs: number, options: TickOptions = {}): void {
   if (!Number.isFinite(dtMs) || dtMs < 0) throw new Error(`tick: dtMs must be a finite number >= 0, got ${dtMs}`)
   const registry = options.registry ?? REGISTRY
+  const n = advanceTick(store)
   for (const system of options.systems ?? SYSTEM_TICKS) {
     const step = new StepStore(store)
-    system.run({ game, store: step, dtMs })
-    dispatch(registry, { game, store: step }, step)
+    system.run({ game, store: step, tick: n, dtMs })
+    dispatch(registry, { game, store: step, tick: n }, step)
   }
 }

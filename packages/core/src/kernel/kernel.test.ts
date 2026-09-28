@@ -7,6 +7,7 @@ import { execute } from '../execute.ts'
 import { createGame } from '../game.ts'
 import { Registry } from '../registry.ts'
 import { MemoryStore } from '../store/memory.ts'
+import { worldClock } from './clock.ts'
 import { commandNonce } from './nonce.ts'
 
 // Fixture commands and events live in a local Registry, so the real
@@ -27,7 +28,7 @@ const game = createGame({ tuning: {} })
 const SENDER = 'alice'
 
 function setup() {
-  const store = new MemoryStore({ tables: [commandNonce] })
+  const store = new MemoryStore({ tables: [commandNonce, worldClock] })
   const registry = new Registry<TestCommand, TestEvent>()
   const seen: string[] = []
   registry.command({
