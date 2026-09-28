@@ -78,7 +78,7 @@ describe('entity tick', () => {
     tick(game, store, DT, { systems: SYSTEMS })
     // Stepping from x = 0 to x < 0 leaves sector 0,0 for -1,0.
     const moved = store.events().filter((e) => e.kind === 'entity.sector_changed')
-    expect(moved).toEqual([{ kind: 'entity.sector_changed', tick: 0, entity: id, from: '0,0', to: '-1,0' }])
+    expect(moved).toEqual([{ kind: 'entity.sector_changed', tick: 1, entity: id, from: '0,0', to: '-1,0' }])
     for (let i = 0; i < 5; i += 1) tick(game, store, DT, { systems: SYSTEMS })
     expect(store.events().filter((e) => e.kind === 'entity.sector_changed')).toHaveLength(1)
   })

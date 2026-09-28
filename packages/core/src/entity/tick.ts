@@ -18,8 +18,8 @@ export function stepKnobs(game: Game): StepKnobs {
 }
 
 /**
- * Move every entity with input or velocity by `dtMs`. `tick` stamps the
- * events: the kernel's tick counter (P0-025) once it exists.
+ * Move every entity with input or velocity by `dtMs`. `tick` (the world
+ * clock's current tick, P0-025) stamps the events.
  */
 export function moveEntities(store: Store, game: Game, dtMs: number, tick: number, world: WorldView = FLAT_WORLD): void {
   const knobs = stepKnobs(game)
@@ -42,10 +42,9 @@ export function moveEntities(store: Store, game: Game, dtMs: number, tick: numbe
 }
 
 /**
- * The `SYSTEM_TICKS` entry. `tick` is read from the context when the kernel
- * provides it (P0-025) and is 0 until then.
+ * The `SYSTEM_TICKS` entry. The kernel passes the current tick in the context.
  */
 export const entityTick: SystemTick = {
   system: 'entity',
-  run: (ctx: TickContext & { readonly tick?: number }) => moveEntities(ctx.store, ctx.game, ctx.dtMs, ctx.tick ?? 0),
+  run: (ctx: TickContext) => moveEntities(ctx.store, ctx.game, ctx.dtMs, ctx.tick),
 }
