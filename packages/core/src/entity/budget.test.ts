@@ -12,6 +12,7 @@ const PLAYERS = 200
 const DT = 100
 const BUDGET_MS = 2
 const WARMUP = 20
+// Measured over many ticks: Date.now() is ms-resolution (core has no DOM/node types).
 const TICKS = 200
 
 describe('entity tick budget', () => {
@@ -25,9 +26,9 @@ describe('entity tick budget', () => {
     }
     const systems = [entityTick]
     for (let i = 0; i < WARMUP; i += 1) tick(game, store, DT, { systems })
-    const start = performance.now()
+    const start = Date.now()
     for (let i = 0; i < TICKS; i += 1) tick(game, store, DT, { systems })
-    const perTick = (performance.now() - start) / TICKS
+    const perTick = (Date.now() - start) / TICKS
     expect([...store.byIndex('entity_input', 'by_moving', true)]).toHaveLength(PLAYERS)
     expect(perTick).toBeLessThan(BUDGET_MS)
   })
