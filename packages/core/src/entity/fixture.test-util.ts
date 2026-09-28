@@ -3,6 +3,7 @@
 // kernel's and this system's tables.
 
 import { createGame } from '../game.ts'
+import { worldClock } from '../kernel/clock.ts'
 import { commandNonce } from '../kernel/nonce.ts'
 import { MemoryStore } from '../store/memory.ts'
 import type { StepKnobs } from './schema.ts'
@@ -19,5 +20,5 @@ export const game = createGame({ tuning: TUNING })
 export const KNOBS: StepKnobs = stepKnobs(game)
 
 export function newStore(seed = 0): MemoryStore {
-  return new MemoryStore({ seed, tables: [commandNonce, ...ENTITY_TABLES] })
+  return new MemoryStore({ seed, tables: [commandNonce, worldClock, ...ENTITY_TABLES] })
 }
