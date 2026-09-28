@@ -71,6 +71,12 @@ importers:
 
   packages/server:
     dependencies:
+      '@bastion/content':
+        specifier: workspace:*
+        version: link:../content
+      '@bastion/core':
+        specifier: workspace:*
+        version: link:../core
       spacetimedb:
         specifier: 2.10.1
         version: 2.10.1
