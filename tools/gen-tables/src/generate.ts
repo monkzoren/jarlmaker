@@ -75,7 +75,7 @@ function mapTable(def: TableDef): Mapped {
 }
 
 function renderTable({ def, columns }: Mapped): string {
-  const opts = [`      name: ${quote(def.name)},`, '      public: true,']
+  const opts = [`      name: ${quote(def.name)},`, `      public: ${def.public},`]
   if (def.indexes.length > 0) {
     opts.push('      indexes: [')
     for (const ix of def.indexes) {

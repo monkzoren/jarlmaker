@@ -86,9 +86,14 @@ describe('table typing', () => {
 describe('defineTable', () => {
   const row = z.object({ id: z.string(), owner: z.string() })
 
-  it('returns plain data with indexes defaulted to empty', () => {
+  it('returns plain data with indexes defaulted to empty and the table private', () => {
     const t = defineTable({ name: 'plain', row, pk: 'id' })
-    expect(t).toEqual({ name: 'plain', row, pk: 'id', indexes: [] })
+    expect(t).toEqual({ name: 'plain', row, pk: 'id', indexes: [], public: false })
+  })
+
+  it('carries an explicit visibility', () => {
+    expect(defineTable({ name: 'seen', row, pk: 'id', public: true }).public).toBe(true)
+    expect(defineTable({ name: 'hidden', row, pk: 'id', public: false }).public).toBe(false)
   })
 
   it('validates the declaration at runtime too', () => {

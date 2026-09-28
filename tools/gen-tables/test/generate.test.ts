@@ -43,6 +43,22 @@ describe('generate', () => {
     expect(cols.filter((c) => c.default).map((c) => c.name)).toEqual(['level', 'label'])
   })
 
+  it('emits each table\'s declared visibility, private by default', () => {
+    const { source } = generate(FIXTURE)
+    expect(source).toMatch(/name: 'counter',\n\s+public: false,/)
+    expect(source).toMatch(/name: 'every_type',\n\s+public: true,/)
+  })
+
+  it('does not treat a visibility change as an append-only violation', () => {
+    const row = z.object({ id: z.string(), hp: z.number() })
+    const priv = generate([defineTable({ name: 'vis', row, pk: 'id' })])
+    const pub = generate([defineTable({ name: 'vis', row, pk: 'id', public: true })])
+    expect(pub.source).not.toBe(priv.source)
+    expect(pub.manifest).toEqual(priv.manifest)
+    expect(checkAppendOnly(priv.manifest, pub.manifest)).toEqual([])
+    expect(checkAppendOnly(pub.manifest, priv.manifest)).toEqual([])
+  })
+
   it('round-trips its manifest through the generated source', () => {
     const { source, manifest } = generate(FIXTURE)
     expect(parseManifest(source)).toEqual(manifest)

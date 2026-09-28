@@ -31,8 +31,10 @@ export const every = defineTable({
     { name: 'by_kind', columns: ['kind'] },
     { name: 'by_small_count', columns: ['small', 'count'] },
   ],
+  public: true,
 })
 
+// Private: no `public` flag, so the generated table is `public: false`.
 export const counter = defineTable({ name: 'counter', row: z.object({ n: z.uint64(), at: z.number() }), pk: 'n' })
 
 export const FIXTURE = [every, counter]
