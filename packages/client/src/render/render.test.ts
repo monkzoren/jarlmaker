@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { PLACEHOLDER_GRID, PLACEHOLDER_H, PLACEHOLDER_PALETTE, PLACEHOLDER_W, rasterize } from './placeholder.ts'
+import { CASTAWAY } from '@bastion/art'
+import { rasterize } from './raster.ts'
 import { diffEntities } from './snapshot.ts'
 import { MIN_TILES_SHORT_SIDE, pickZoom, TILE_PX, zoomForDpr, ZOOM_LEVELS } from './zoom.ts'
 
@@ -44,12 +45,15 @@ describe('zoom', () => {
   })
 })
 
-describe('placeholder sprite', () => {
-  it('is a 16x32 grid over known palette keys', () => {
-    const img = rasterize(PLACEHOLDER_GRID, PLACEHOLDER_PALETTE)
-    expect(img.width).toBe(PLACEHOLDER_W)
-    expect(img.height).toBe(PLACEHOLDER_H)
-    expect(img.data.length).toBe(PLACEHOLDER_W * PLACEHOLDER_H * 4)
+describe('rasterize', () => {
+  it('rasterizes every castaway frame to width x height RGBA', () => {
+    for (const byFacing of Object.values(CASTAWAY.anims))
+      for (const frames of Object.values(byFacing))
+        for (const f of frames) {
+          const img = rasterize(f, CASTAWAY.palette)
+          expect([img.width, img.height]).toEqual([CASTAWAY.width, CASTAWAY.height])
+          expect(img.data.length).toBe(CASTAWAY.width * CASTAWAY.height * 4)
+        }
   })
 
   it('writes palette colours and leaves "." transparent', () => {
