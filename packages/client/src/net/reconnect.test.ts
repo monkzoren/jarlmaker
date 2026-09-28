@@ -1,3 +1,5 @@
+import { content } from '@bastion/content'
+import { MS_PER_SECOND } from '@bastion/core'
 import { describe, expect, it } from 'vitest'
 import { createNonceSource } from './nonce.ts'
 import {
@@ -11,7 +13,18 @@ import {
   type Timers,
 } from './reconnect.ts'
 
-const KNOBS: ReconnectKnobs = { queueMs: 30_000, queueMax: 5, backoffMinMs: 500, backoffMaxMs: 5000, silenceMs: 3000, connectTimeoutMs: 8000 }
+// The shipped `tuning.net` values, wired the way app.ts and connection.ts wire them.
+const { net } = content.tuning
+const KNOBS: ReconnectKnobs = {
+  queueMs: net.reconnectQueueSeconds * MS_PER_SECOND,
+  queueMax: net.reconnectQueueMax,
+  backoffMinMs: net.reconnectBackoffMinMs,
+  backoffMaxMs: net.reconnectBackoffMaxMs,
+  silenceMs: net.reconnectSilenceMs,
+  connectTimeoutMs: net.reconnectConnectTimeoutMs,
+}
+/** The wait before retry `n`, so the tests read in retries rather than milliseconds. */
+const wait = (n: number): number => backoffMs(KNOBS, n)
 
 /** Manual clock: timers fire only when `advance` passes them. */
 function fakeTimers(): Timers & { advance(ms: number): void; readonly pending: number } {
@@ -141,7 +154,13 @@ async function online(s: ReturnType<typeof setup>) {
 
 describe('backoffMs', () => {
   it('doubles from the floor and stops at the ceiling', () => {
-    expect([0, 1, 2, 3, 4, 10].map((a) => backoffMs(KNOBS, a))).toEqual([500, 1000, 2000, 4000, 5000, 5000])
+    const waits = [0, 1, 2, 3, 4, 10, 30].map((a) => backoffMs(KNOBS, a))
+    expect(waits[0]).toBe(KNOBS.backoffMinMs)
+    expect(waits[1]).toBe(2 * KNOBS.backoffMinMs)
+    expect(waits[2]).toBe(4 * KNOBS.backoffMinMs)
+    expect(waits.at(-1)).toBe(KNOBS.backoffMaxMs)
+    for (let i = 1; i < waits.length; i++) expect(waits[i]).toBeGreaterThanOrEqual(waits[i - 1] ?? 0)
+    expect(Math.max(...waits)).toBe(KNOBS.backoffMaxMs)
   })
 })
 
@@ -167,16 +186,16 @@ describe('connection state machine', () => {
     const s = setup()
     await online(s)
     s.server.latest().kill()
-    s.timers.advance(500)
+    s.timers.advance(wait(0))
     s.server.latest().kill() // attempt 1 fails
     expect(s.r.phase).toBe('dropped')
-    s.timers.advance(999)
+    s.timers.advance(wait(1) - 1)
     expect(s.server.links).toHaveLength(2)
     s.timers.advance(1)
     expect(s.server.links).toHaveLength(3)
     await online(s)
     s.server.latest().kill()
-    s.timers.advance(500) // back to the floor
+    s.timers.advance(wait(0)) // back to the floor
     expect(s.server.links).toHaveLength(4)
   })
 
@@ -186,10 +205,10 @@ describe('connection state machine', () => {
     s.r.nudge()
     expect(s.server.links).toHaveLength(1)
     s.server.latest().kill()
-    s.timers.advance(500)
+    s.timers.advance(wait(0))
     s.server.latest().kill()
-    s.timers.advance(1000)
-    s.server.latest().kill() // now waiting 2 s
+    s.timers.advance(wait(1))
+    s.server.latest().kill() // now waiting wait(2)
     s.r.nudge()
     expect(s.r.phase).toBe('reconnecting')
     expect(s.server.links).toHaveLength(4)
@@ -197,7 +216,7 @@ describe('connection state machine', () => {
     expect(s.server.links).toHaveLength(4)
     await online(s)
     expect(s.r.phase).toBe('online')
-    s.timers.advance(2000) // the cancelled retry never fires
+    s.timers.advance(wait(2)) // the cancelled retry never fires
     expect(s.server.links).toHaveLength(4)
   })
 
@@ -234,7 +253,7 @@ describe('connection state machine', () => {
     await online(s)
     const old = s.server.latest()
     old.kill()
-    s.timers.advance(500)
+    s.timers.advance(wait(0))
     old.h.ready('me') // stale
     old.h.lost('stale')
     expect(s.r.phase).toBe('reconnecting')
@@ -272,7 +291,7 @@ describe('command queue', () => {
     const nonces = [s.nonce(), s.nonce(), s.nonce()]
     const ps = nonces.map((n, i) => s.r.move(n, i, 0))
     expect(s.r.queued).toBe(3)
-    s.timers.advance(500)
+    s.timers.advance(wait(0))
     await online(s)
     await Promise.all(ps)
     const after = s.server.applied.slice(-4)
@@ -288,7 +307,7 @@ describe('command queue', () => {
     const p = s.r.move(n, 1, 0) // committed on the server...
     s.server.latest().kill() // ...but the ack dies with the socket
     expect(s.r.queued).toBe(1)
-    s.timers.advance(500)
+    s.timers.advance(wait(0))
     await online(s)
     // The replay came back `duplicate`: refused, not applied again.
     await expect(p).rejects.toThrow('duplicate')
@@ -303,7 +322,7 @@ describe('command queue', () => {
     const ps = [1, 2, 3].map((ix) => s.r.move(s.nonce(), ix, 0))
     await expect(ps[0]).rejects.toBeInstanceOf(QueueDropped)
     expect(s.r.queued).toBe(2)
-    s.timers.advance(500)
+    s.timers.advance(wait(0))
     await online(s)
     await Promise.all(ps.slice(1))
     expect(s.server.applied.filter((a) => a.kind === 'move').map((a) => a.ix)).toEqual([2, 3])

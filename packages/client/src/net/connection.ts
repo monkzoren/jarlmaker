@@ -1,6 +1,7 @@
 /**
  * The SpacetimeDB connection. Each link connects with the stored token (same
- * identity across reloads and reconnects), subscribes to the public entity
+ * identity across reloads and reconnects; a token the server rejects is
+ * forgotten, so the next link connects as a fresh identity), subscribes to the public entity
  * tables, and mirrors their rows into the one `SnapshotStore`. When the
  * subscription applies, the snapshot is reconciled against the server's rows
  * (rows deleted during a dropout go away; nothing is reloaded). The
@@ -18,9 +19,9 @@ import { DbConnection, type ErrorContext } from './bindings/index.ts'
 import type { NetConfig } from './config.ts'
 import type { NonceSource } from './nonce.ts'
 import type { SnapshotStore } from './snapshot.ts'
-import { createReconnector, RECONNECT_TIMING, type Link, type LinkHandlers, type PhaseInfo, type Timers } from './reconnect.ts'
+import { createReconnector, type Link, type LinkHandlers, type PhaseInfo, type ReconnectKnobs, type Timers } from './reconnect.ts'
 import type { ConnState } from './status.ts'
-import { loadToken, saveToken, type TokenStorage } from './token.ts'
+import { forgetRejectedToken, loadToken, saveToken, type TokenStorage } from './token.ts'
 
 // TODO(P1-017): whole tables are fine for P0; replace with the 3x3 sector
 // window (CLAUDE.md 3.6 rule 1) before anything else subscribes here.
@@ -33,6 +34,8 @@ export interface NetDeps {
   readonly storage: TokenStorage | undefined
   /** `tuning.net`: how long and how many moves to queue during a dropout. */
   readonly queue: { readonly seconds: number; readonly max: number }
+  /** `tuning.net`: reconnect backoff, silence and connect timeouts. */
+  readonly timing: Pick<ReconnectKnobs, 'backoffMinMs' | 'backoffMaxMs' | 'silenceMs' | 'connectTimeoutMs'>
   readonly onState: (s: ConnState) => void
   /** Called each time the `join` reducer commits (first connect and every reconnect). */
   readonly onJoined?: (identity: string) => void
@@ -48,7 +51,7 @@ export interface Net {
 }
 
 export function connect(deps: NetDeps): Net {
-  const { config, snapshot, nonces, queue, onState, onJoined, onQueueDropped } = deps
+  const { config, snapshot, nonces, queue, timing, onState, onJoined, onQueueDropped } = deps
   let identity = ''
   let phase: PhaseInfo['phase'] = 'connecting'
   const report = (): void => {
@@ -59,7 +62,14 @@ export function connect(deps: NetDeps): Net {
   const reconnector = createReconnector({
     transport: (h) => openLink(deps, h, (id) => (identity = id)),
     nonces,
-    knobs: { queueMs: queue.seconds * MS_PER_SECOND, queueMax: queue.max, ...RECONNECT_TIMING },
+    knobs: {
+      queueMs: queue.seconds * MS_PER_SECOND,
+      queueMax: queue.max,
+      backoffMinMs: timing.backoffMinMs,
+      backoffMaxMs: timing.backoffMaxMs,
+      silenceMs: timing.silenceMs,
+      connectTimeoutMs: timing.connectTimeoutMs,
+    },
     timers: deps.timers ?? { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
     onPhase: (info) => {
       phase = info.phase
@@ -133,7 +143,11 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
         .subscribe([...SUBSCRIPTIONS])
     })
     .onConnectError((_ctx, err) => {
-      if (live) h.lost(message(err))
+      if (!live) return
+      // A rejected token is dropped here; the reconnector's next attempt then
+      // loads none and the server issues a fresh identity (P0-042).
+      forgetRejectedToken(storage, config.tokenKey, err)
+      h.lost(message(err))
     })
     .onDisconnect((_ctx, err) => {
       if (live) h.lost(err === undefined ? undefined : message(err))
