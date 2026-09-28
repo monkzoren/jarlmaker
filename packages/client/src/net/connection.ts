@@ -18,7 +18,7 @@ import { DbConnection, type ErrorContext } from './bindings/index.ts'
 import type { NetConfig } from './config.ts'
 import type { NonceSource } from './nonce.ts'
 import type { SnapshotStore } from './snapshot.ts'
-import { createReconnector, RECONNECT_TIMING, type Link, type LinkHandlers, type PhaseInfo, type Timers } from './reconnect.ts'
+import { createReconnector, type Link, type LinkHandlers, type PhaseInfo, type ReconnectKnobs, type Timers } from './reconnect.ts'
 import type { ConnState } from './status.ts'
 import { loadToken, saveToken, type TokenStorage } from './token.ts'
 
@@ -33,6 +33,8 @@ export interface NetDeps {
   readonly storage: TokenStorage | undefined
   /** `tuning.net`: how long and how many moves to queue during a dropout. */
   readonly queue: { readonly seconds: number; readonly max: number }
+  /** `tuning.net`: reconnect backoff, silence and connect timeouts. */
+  readonly timing: Pick<ReconnectKnobs, 'backoffMinMs' | 'backoffMaxMs' | 'silenceMs' | 'connectTimeoutMs'>
   readonly onState: (s: ConnState) => void
   /** Called each time the `join` reducer commits (first connect and every reconnect). */
   readonly onJoined?: (identity: string) => void
@@ -48,7 +50,7 @@ export interface Net {
 }
 
 export function connect(deps: NetDeps): Net {
-  const { config, snapshot, nonces, queue, onState, onJoined, onQueueDropped } = deps
+  const { config, snapshot, nonces, queue, timing, onState, onJoined, onQueueDropped } = deps
   let identity = ''
   let phase: PhaseInfo['phase'] = 'connecting'
   const report = (): void => {
@@ -59,7 +61,14 @@ export function connect(deps: NetDeps): Net {
   const reconnector = createReconnector({
     transport: (h) => openLink(deps, h, (id) => (identity = id)),
     nonces,
-    knobs: { queueMs: queue.seconds * MS_PER_SECOND, queueMax: queue.max, ...RECONNECT_TIMING },
+    knobs: {
+      queueMs: queue.seconds * MS_PER_SECOND,
+      queueMax: queue.max,
+      backoffMinMs: timing.backoffMinMs,
+      backoffMaxMs: timing.backoffMaxMs,
+      silenceMs: timing.silenceMs,
+      connectTimeoutMs: timing.connectTimeoutMs,
+    },
     timers: deps.timers ?? { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
     onPhase: (info) => {
       phase = info.phase

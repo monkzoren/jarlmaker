@@ -47,6 +47,12 @@ const connection = connect({
   nonces,
   storage: safeLocalStorage(),
   queue: { seconds: net.reconnectQueueSeconds, max: net.reconnectQueueMax },
+  timing: {
+    backoffMinMs: net.reconnectBackoffMinMs,
+    backoffMaxMs: net.reconnectBackoffMaxMs,
+    silenceMs: net.reconnectSilenceMs,
+    connectTimeoutMs: net.reconnectConnectTimeoutMs,
+  },
   onState: (s) => {
     hud.textContent = statusText(s)
     hud.dataset['state'] = s.kind

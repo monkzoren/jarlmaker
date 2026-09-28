@@ -21,23 +21,6 @@
  */
 import type { NonceSource } from './nonce.ts'
 
-// TODO(P0-040): move these into `tuning.net`; the schema is core's.
-export const RECONNECT_TIMING = {
-  // First retry comes quickly: most drops are a tunnel or a network handoff
-  // that is already over.
-  backoffMinMs: 500,
-  // Doubling stops here, so a long outage still retries every few seconds and
-  // the player is back within one interval of the network returning.
-  backoffMaxMs: 5000,
-  // The server updates `world_clock` every tick. This long with no traffic
-  // means the socket is dead even if the browser has not closed it.
-  silenceMs: 3000,
-  // An attempt that has not reached `ready` by now is abandoned and retried:
-  // a connect into a dead network can hang far longer than the backoff.
-  // Generous, so a slow phone handshake plus the first subscription fits.
-  connectTimeoutMs: 8000,
-} as const
-
 /** One live socket to the server, as the reconnector needs it. */
 export interface Link {
   move(nonce: number, ix: number, iy: number): Promise<void>
