@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@bastion/core": "workspace:*",
-    "pixi.js": "8.21.0"
+    "pixi.js": "8.21.0",
+    "spacetimedb": "2.10.1"
   },
   "devDependencies": {
     "jsdom": "29.1.1",
