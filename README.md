@@ -130,11 +130,11 @@ server and `docker-compose.yml` all expect 3000, so free the port rather than
 moving it. If **5173** is taken, Vite quietly picks the next free port: use
 the `Local:` URL it prints.
 
-**Stale auth token.** Tokens are signed by the local server's key. That key
-currently lives inside the container, not in the `bastion_bastion-stdb`
-volume, so it changes whenever the container is recreated (`pnpm
-server:down` then `pnpm server:up`, removing the volume, a Docker reset). Every
-token issued before that stops working (P0-044 moves the key into the volume):
+**Stale auth token.** Tokens are signed by the local server's key, which
+lives in the `bastion_bastion-stdb` volume (`/stdb/keys`). `pnpm server:down`
+then `pnpm server:up` keeps it, so every identity stays valid. Only removing
+the volume (`docker compose down -v`, `docker volume rm`, a Docker reset)
+generates a new key, and every token issued before that stops working:
 
 - `pnpm server:publish` fails with `Error: Invalid token: InvalidSignature`
   (`401 Unauthorized`). Run `pnpm server:cli logout`, then publish again.

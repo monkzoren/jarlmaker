@@ -8,7 +8,20 @@ services:
     image: clockworklabs/spacetime:v2.10.1
     # A fresh named volume is root-owned; the image's default user cannot write it.
     user: root
-    command: ["start", "--listen-addr", "0.0.0.0:3000", "--data-dir", "/stdb/data", "--non-interactive"]
+    # The JWT key pair lives in the volume, not the container's config dir, so
+    # recreating the container keeps every issued token valid. `start`
+    # generates the pair on first run when the files are missing.
+    command:
+      - start
+      - --listen-addr
+      - 0.0.0.0:3000
+      - --data-dir
+      - /stdb/data
+      - --jwt-pub-key-path
+      - /stdb/keys/id_ecdsa.pub
+      - --jwt-priv-key-path
+      - /stdb/keys/id_ecdsa
+      - --non-interactive
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
