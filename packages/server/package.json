@@ -6,8 +6,8 @@
   "scripts": {
     "server:up": "sh scripts/up.sh",
     "server:down": "docker compose -f ../../docker-compose.yml down",
-    "server:publish": "sh scripts/spacetime.sh publish --server local --module-path . --delete-data=always --yes bastion",
-    "server:bindings": "sh scripts/spacetime.sh generate --lang typescript --module-path . --out-dir ../client/src/net/bindings --yes",
+    "server:publish": "node ../../tools/build-id/src/cli.ts -- sh scripts/spacetime.sh publish --server local --module-path . --delete-data=always --yes bastion",
+    "server:bindings": "node ../../tools/build-id/src/cli.ts -- sh scripts/spacetime.sh generate --lang typescript --module-path . --out-dir ../client/src/net/bindings --yes",
     "server:cli": "sh scripts/spacetime.sh",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
