@@ -40,6 +40,7 @@ import MoveReducer from "./move_reducer";
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import BuildInfoRow from "./build_info_table";
 import EntityRow from "./entity_table";
 import EntityPosRow from "./entity_pos_table";
 import WorldClockRow from "./world_clock_table";
@@ -87,6 +88,13 @@ const tablesSchema = __schema({
       { name: 'world_clock_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldClockRow),
+  buildInfo: __table({
+    name: 'build_info',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, BuildInfoRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
@@ -105,6 +113,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "entity_pos": Omit<typeof tablesSchema.schemaType.tables["entityPos"], "accessorName"> & { readonly accessorName: "entity_pos" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
+    /** @deprecated Use `buildInfo` instead. This alias will be removed in the next major version. */
+    readonly "build_info": Omit<typeof tablesSchema.schemaType.tables["buildInfo"], "accessorName"> & { readonly accessorName: "build_info" };
   };
 };
 
@@ -125,6 +135,7 @@ const REMOTE_MODULE = {
 const tableAccessorAliases = {
   "entity_pos": "entityPos",
   "world_clock": "worldClock",
+  "build_info": "buildInfo",
 } as const;
 
 function __withTableAccessorAliases<T extends object>(target: T, freeze = false): T {
@@ -149,6 +160,8 @@ export type DbView = __DbViewBase & {
   readonly "entity_pos": __DbViewBase["entityPos"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __DbViewBase["worldClock"];
+  /** @deprecated Use `buildInfo` instead. This alias will be removed in the next major version. */
+  readonly "build_info": __DbViewBase["buildInfo"];
 };
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
@@ -157,6 +170,8 @@ export type Tables = __TablesBase & {
   readonly "entity_pos": __TablesBase["entityPos"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __TablesBase["worldClock"];
+  /** @deprecated Use `buildInfo` instead. This alias will be removed in the next major version. */
+  readonly "build_info": __TablesBase["buildInfo"];
 };
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */

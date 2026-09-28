@@ -1,13 +1,8 @@
 {
-  "name": "@bastion/replay",
+  "name": "@bastion/smoke",
   "private": true,
   "type": "module",
-  "description": "pnpm replay: recorded command scripts through core on MemoryStore vs committed goldens (CLAUDE.md 3.4, 3.8)",
-  "exports": {
-    "./run": "./src/run.ts",
-    "./format": "./src/format.ts",
-    "./diff": "./src/diff.ts"
-  },
+  "description": "pnpm smoke: Playwright against a throwaway SpacetimeDB in Docker, diffed against MemoryStore (CLAUDE.md 3.8)",
   "scripts": {
     "cli": "tsx src/cli.ts",
     "test": "vitest run",
@@ -16,6 +11,8 @@
   "dependencies": {
     "@bastion/content": "workspace:*",
     "@bastion/core": "workspace:*",
+    "@bastion/replay": "workspace:*",
+    "playwright-core": "1.56.1",
     "zod": "4.6.5"
   },
   "devDependencies": {

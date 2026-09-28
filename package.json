@@ -17,7 +17,7 @@
     "gen:tables": "pnpm --filter @bastion/gen-tables run gen",
     "balance": "node -e \"console.log('balance: no checks yet')\"",
     "replay": "pnpm --filter @bastion/replay run cli",
-    "smoke": "node -e \"console.log('smoke: no checks yet')\"",
+    "smoke": "node tools/build-id/src/cli.ts -- pnpm --filter @bastion/smoke run cli",
     "worldgold": "node -e \"console.log('worldgold: no checks yet')\"",
     "tasks:validate": "pnpm --filter @bastion/tasks run cli validate",
     "tasks:board": "pnpm --filter @bastion/tasks run cli board",

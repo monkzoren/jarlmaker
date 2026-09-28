@@ -53,7 +53,18 @@ jobs:
       - name: Docker is available
         run: docker version
       - run: pnpm install --frozen-lockfile
+      # The Chromium build playwright-core is pinned to (tools/smoke), plus its system libraries.
+      - run: pnpm --filter @bastion/smoke exec playwright-core install --with-deps chromium
+      # Throwaway SpacetimeDB in Docker, the built client in headless Chromium,
+      # a 10 s socket cut, then the server's tables diffed against MemoryStore.
       - run: pnpm smoke
+      - name: Upload traces and dumps on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke
+          path: tools/smoke/out/
+          if-no-files-found: ignore
 
   board:
     # Only this job commits docs/BOARD.md and docs/STATUS.md, so parallel
