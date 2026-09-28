@@ -1,22 +1,10 @@
-// Hello module (P0-010): proves the toolchain end to end — build, publish to
-// the local Docker SpacetimeDB, call a reducer, query a table. P0-011 replaces
-// it with StdbStore and the real reducers; nothing may depend on `hello`.
-import { schema, SenderError, table, t } from 'spacetimedb/server';
+// The SpacetimeDB module (ADR 0001): the schema plus one reducer per core
+// command and the scheduled tick. Every reducer is thin glue over
+// `@bastion/core`; see README.md.
 
-const spacetimedb = schema({
-  hello: table(
-    { public: true },
-    {
-      id: t.u64().primaryKey().autoInc(),
-      name: t.string(),
-      sender: t.identity(),
-      at: t.timestamp(),
-    },
-  ),
-});
-export default spacetimedb;
+import spacetimedb from './schema.ts'
 
-export const say_hello = spacetimedb.reducer({ name: t.string() }, (ctx, { name }) => {
-  if (name.length === 0) throw new SenderError('name must not be empty');
-  ctx.db.hello.insert({ id: 0n, name, sender: ctx.sender, at: ctx.timestamp });
-});
+export default spacetimedb
+export { join } from './reducers/join.ts'
+export { move } from './reducers/move.ts'
+export { init, tick } from './tick.ts'

@@ -12,7 +12,6 @@ import { createGame } from '@bastion/core'
 import { diffStat } from './diff.ts'
 import { contentHash, scriptSchema } from './format.ts'
 import { compare, runScript } from './run.ts'
-import './systems.ts' // registers the systems before createGame validates their tuning
 
 const DIR = fileURLToPath(new URL('../../../tests/replay/', import.meta.url))
 const GOLDEN = '.golden.json'
