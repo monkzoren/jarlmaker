@@ -1,0 +1,24 @@
+{
+  "name": "@bastion/eslint-plugin",
+  "private": true,
+  "type": "module",
+  "description": "The architecture police: repo-local ESLint rules for the layout rules in CLAUDE.md 3.3 and 3.5.9",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "eslint": "10.11.0"
+  },
+  "devDependencies": {
+    "@types/estree": "1.0.9",
+    "@types/node": "22.20.4",
+    "eslint": "10.11.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "4.1.11"
+  }
+}
