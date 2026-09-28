@@ -780,7 +780,7 @@ other way round.
 | Role | Runs | Does |
 |------|------|------|
 | **Planner** | Once before Phase 0, then once per phase boundary | Turns Sections 3, 5, and `docs/FEEDBACK.md` into task files. Writes no product code. |
-| **Worker** | 3–5 in parallel, continuously | Claims one ready task by pushing the claim on its branch, builds it to its DoD, opens the PR, sets `status: done` in the same PR. |
+| **Worker** | Only for large, independent slices (ADR 0009); the integrator builds most slices itself | Claims one ready task by pushing the claim on its branch, builds it to its DoD, opens the PR, sets `status: done` in the same PR. |
 | **Reviewer** | One per PR | Reads the task file, checks the diff against every DoD line and Section 3.10, approves or requests changes. Never edits code. |
 | **Integrator** | The maintainer (or auto-merge once trusted) | Merges green, approved PRs; runs the playtest at phase gates. |
 
@@ -820,8 +820,10 @@ lives here; if it matters, it's a DoD line.
 ```
 
 Rules:
-- **Granularity.** A task fits one session and one PR: ≤ ~400 changed lines,
-  ≤ 2 packages, ≤ 1 lane. `XL` does not exist; split it.
+- **Granularity (ADR 0009).** A task is a *vertical slice a player can see*:
+  rules, content, art, client and tests together, fitting one session and
+  one PR. It may span packages and lanes. `XL` does not exist; split it.
+  Player-visible PRs carry screenshots or a clip from the real server.
 - **Every DoD line is checkable** by the reviewer from the diff or a command.
   "Works well" is not a DoD line; "smoke `build-and-fight` passes" is.
 - **Contract tasks come first.** For every system, the first task defines

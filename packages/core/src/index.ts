@@ -76,4 +76,5 @@ export {
 } from './game.ts'
 
 // Systems. Importing each registers its tables, commands, events and tuning.
+export * from './world/index.ts'
 export * from './entity/index.ts'

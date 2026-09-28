@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GameEvent } from '../events/index.ts'
 import { TUNING } from '../entity/fixture.test-util.ts'
+import { FLAT_WORLD_SECTIONS } from '../world/fixture.ts'
 import { createGame } from '../game.ts'
 import { Registry } from '../registry.ts'
 import { MemoryStore } from '../store/memory.ts'
@@ -12,7 +13,7 @@ type TestEvent = { readonly kind: 'test.ticked'; readonly tick: number; readonly
 const ev = (e: TestEvent): GameEvent => e as unknown as GameEvent
 
 // Importing `tick.ts` registers every system's tuning sections (SYSTEM_TICKS).
-const game = createGame({ tuning: TUNING })
+const game = createGame({ tuning: TUNING, ...FLAT_WORLD_SECTIONS })
 
 describe('tick', () => {
   it('runs systems in list order, dispatching each step before the next system', () => {

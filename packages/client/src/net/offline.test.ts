@@ -3,8 +3,8 @@
 // "server" is core itself on MemoryStore. The link can be cut the way a
 // tunnel cuts it (calls vanish, no traffic) and restored.
 import { content } from '@bastion/content'
-import { createGame, currentTick, execute, MS_PER_SECOND, FLAT_WORLD, playerOf, stepKnobs, tick, type Command } from '@bastion/core'
-import { MemoryStore } from '@bastion/core/testing'
+import { createGame, currentTick, execute, MS_PER_SECOND, terrainOf, playerOf, stepKnobs, tick, type Command } from '@bastion/core'
+import { FLAT_WORLD_SECTIONS, FLAT_WORLD_TUNING, MemoryStore } from '@bastion/core/testing'
 import { describe, expect, it } from 'vitest'
 import { createNonceSource } from './nonce.ts'
 import { createPlay } from './play.ts'
@@ -13,7 +13,8 @@ import { createReconnector, type Link, type LinkHandlers, type Timers } from './
 import { createSnapshotStore } from './snapshot.ts'
 import { createView } from './view.ts'
 
-const game = createGame(content)
+// Net behaviour on open ground: a flat world, so no tree stops the walk.
+const game = createGame({ ...content, ...FLAT_WORLD_SECTIONS, tuning: { ...content.tuning, world: FLAT_WORLD_TUNING } })
 const { net } = content.tuning
 const dtMs = MS_PER_SECOND / net.tickHz
 const ME = 'me'
@@ -142,7 +143,7 @@ function harness() {
     nonces,
     now: () => now,
     graceMs: net.offlineMoveGraceMs,
-    predictor: createPredictor({ knobs: stepKnobs(game), dtMs, world: FLAT_WORLD, maxTicks: 300 }),
+    predictor: createPredictor({ knobs: stepKnobs(game), dtMs, world: terrainOf(game), maxTicks: 300 }),
     view: createView({
       dtMs,
       remoteDelayMs: net.remoteDelayTicks * dtMs,

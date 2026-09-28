@@ -94,18 +94,20 @@ export function createView(knobs: ViewKnobs): View {
 
     frame(nowMs) {
       const out: RenderEntity[] = []
+      let focus: RenderEntity | undefined
       if (own !== undefined) {
         const decay = lastFrame === undefined ? 1 : Math.exp(-(nowMs - lastFrame) / smoothMs)
         own.offset = { x: own.offset.x * decay, y: own.offset.y * decay }
         const a = clamp01((nowMs - own.at) / dtMs)
-        out.push(pixels(own.id, lerp(own.from, own.to, a), own.offset))
+        focus = pixels(own.id, lerp(own.from, own.to, a), own.offset)
+        out.push(focus)
       }
       lastFrame = nowMs
       const renderAt = nowMs - remoteDelayMs
       for (const [id, list] of remotes) {
         out.push(pixels(id, sampleAt(list, renderAt), { x: 0, y: 0 }))
       }
-      return { entities: out }
+      return focus === undefined ? { entities: out } : { entities: out, focus: { x: focus.x, y: focus.y } }
     },
   }
 }

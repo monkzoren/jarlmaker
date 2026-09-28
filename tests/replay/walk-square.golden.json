@@ -10,7 +10,7 @@
       {"id":"1n","ix":0,"iy":0,"moving":false}
     ],
     "entity_pos": [
-      {"facing":1.5707963267948966,"id":"1n","sector":"0,0","vx":0,"vy":0,"x":0.3062741699796955,"y":0.3062741699796957}
+      {"facing":1.5707963267948966,"id":"1n","sector":"0,0","vx":0,"vy":0,"x":0.4000000000000006,"y":3.36}
     ],
     "entity_seq": [
       {"name":"entity","next":"2n"}
@@ -23,7 +23,7 @@
     {"entity":"1n","from":"0,0","kind":"entity.sector_changed","tick":1,"to":"-1,0"},
     {"entity":"1n","from":"-1,0","kind":"entity.sector_changed","tick":11,"to":"-1,-1"},
     {"entity":"1n","from":"-1,-1","kind":"entity.sector_changed","tick":31,"to":"0,-1"},
-    {"entity":"1n","from":"0,-1","kind":"entity.sector_changed","tick":42,"to":"0,0"}
+    {"entity":"1n","from":"0,-1","kind":"entity.sector_changed","tick":34,"to":"0,0"}
   ],
   "rejections": [
     {"command":6,"code":"duplicate","message":"nonce 6 was already accepted from this sender"}

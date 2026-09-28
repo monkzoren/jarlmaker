@@ -27,7 +27,7 @@ Tuning sections (validated at `createGame`):
 | Section | Knobs | Owner |
 |---|---|---|
 | `movement` | `speed` (cells/s), `accel` (cells/s²), `maxStepMs` | this system (`schema.ts`) |
-| `world` | `chunkSize`, `sectorSize` | registered in `world-view.ts` until the world system takes it (P1-024) |
+| `world` | (see `core/src/world/README.md`) | the world system (`core/src/world/schema.ts`); `stepKnobs` reads its sector size |
 
 `speed × maxStepMs` must stay under one cell, or a step could tunnel through
 a one-cell wall; the schema refuses content that breaks it.

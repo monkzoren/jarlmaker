@@ -3,7 +3,7 @@ import {
   createGame,
   currentTick,
   execute,
-  FLAT_WORLD,
+  terrainOf,
   MS_PER_SECOND,
   playerOf,
   step,
@@ -13,10 +13,12 @@ import {
   type MoveInput,
 } from '@bastion/core'
 import { MemoryStore } from '@bastion/core/testing'
+import { FLAT_WORLD_SECTIONS, FLAT_WORLD_TUNING } from '@bastion/core/testing'
 import { describe, expect, it } from 'vitest'
 import { createPredictor, type Prediction } from './predict.ts'
 
-const game = createGame(content)
+// Prediction on open ground: a flat world, so no tree stops the walk.
+const game = createGame({ ...content, ...FLAT_WORLD_SECTIONS, tuning: { ...content.tuning, world: FLAT_WORLD_TUNING } })
 const dtMs = MS_PER_SECOND / content.tuning.net.tickHz
 const SENDER = 'client-a'
 
@@ -42,7 +44,7 @@ function run(script: ReadonlyMap<number, MoveInput>, steps: number, up: (step: n
     return motion
   }
 
-  const predictor = createPredictor({ knobs: stepKnobs(game), dtMs, world: FLAT_WORLD, maxTicks: 300 })
+  const predictor = createPredictor({ knobs: stepKnobs(game), dtMs, world: terrainOf(game), maxTicks: 300 })
   const upQueue: { at: number; nonce: number; stick: MoveInput }[] = []
   const downQueue: { at: number; msg: Down }[] = [
     { at: 0, msg: { kind: 'state', tick: currentTick(store), motion: motionAt() } },
@@ -139,7 +141,7 @@ describe('prediction against a fake server running core', () => {
   })
 
   it('drops a refused move from the pending buffer', () => {
-    const predictor = createPredictor({ knobs: stepKnobs(game), dtMs, world: FLAT_WORLD, maxTicks: 300 })
+    const predictor = createPredictor({ knobs: stepKnobs(game), dtMs, world: terrainOf(game), maxTicks: 300 })
     predictor.sent(5, { ix: 1, iy: 0 })
     expect(predictor.pending).toBe(1)
     predictor.refused(5)
@@ -148,7 +150,7 @@ describe('prediction against a fake server running core', () => {
 
   it('resync forgets the old server timing, so the first move after a frozen dropout predicts at once (ADR 0008)', () => {
     const knobs = stepKnobs(game)
-    const predictor = createPredictor({ knobs, dtMs, world: FLAT_WORLD, maxTicks: 300 })
+    const predictor = createPredictor({ knobs, dtMs, world: terrainOf(game), maxTicks: 300 })
     const rest = { x: 3, y: 4, vx: 0, vy: 0, facing: 0, sector: '0,0' }
     predictor.sent(1, { ix: 0, iy: 0 })
     predictor.acked(1, 0)
@@ -158,7 +160,7 @@ describe('prediction against a fake server running core', () => {
     const up = { ix: 0, iy: -1 }
     predictor.sent(2, up)
     const p = predictor.advance({ tick: 45, motion: rest })
-    expect(p?.motion).toEqual(step(rest, up, dtMs, FLAT_WORLD, knobs))
+    expect(p?.motion).toEqual(step(rest, up, dtMs, terrainOf(game), knobs))
     expect(predictor.pending).toBe(1)
   })
 })

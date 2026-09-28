@@ -18,3 +18,13 @@ export interface SpriteSheet {
   /** `side` faces right; the renderer mirrors it for left. */
   readonly anims: Readonly<Record<AnimName, Readonly<Record<Facing, readonly Frame[]>>>>
 }
+
+/** A still picture with one or more variants (tiles, decals, props). */
+export interface Picture {
+  readonly id: string
+  readonly width: number
+  readonly height: number
+  readonly palette: Readonly<Record<string, string>>
+  /** Variants of the same thing; tiles pick one per cell. */
+  readonly frames: readonly Frame[]
+}

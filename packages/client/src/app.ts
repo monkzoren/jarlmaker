@@ -5,9 +5,11 @@
  * core's `step`, and hands the renderer one snapshot per frame. Dropouts
  * (P0-016) queue commands and reconnect behind a quiet pip; the page never reloads.
  * Movement freezes while dropped, or silent, instead of queuing (ADR 0008).
+ * The world is computed here from the same seed and rules as the server
+ * (`terrainOf`), so it is drawn and collided locally with nothing on the wire.
  */
 import { content } from '@bastion/content'
-import { createGame, FLAT_WORLD, MS_PER_SECOND, stepKnobs } from '@bastion/core'
+import { createGame, MS_PER_SECOND, stepKnobs, terrainOf } from '@bastion/core'
 import { createInput } from './input/index.ts'
 import {
   connect,
@@ -38,7 +40,8 @@ const { net, input } = content.tuning
 const dtMs = MS_PER_SECOND / net.tickHz
 
 const connHud = createConnectionHud()
-const renderer = await createRenderer(host)
+const terrain = terrainOf(game)
+const renderer = await createRenderer(host, { terrain, chunkSize: content.tuning.world.chunkSize, seed: content.tuning.world.seed })
 const snapshot = createSnapshotStore()
 const nonces = createNonceSource()
 
@@ -74,7 +77,7 @@ const play = createPlay({
   predictor: createPredictor({
     knobs: stepKnobs(game),
     dtMs,
-    world: FLAT_WORLD,
+    world: terrain,
     maxTicks: net.reconnectQueueSeconds * net.tickHz,
   }),
   view: createView({

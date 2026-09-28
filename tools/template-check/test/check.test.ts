@@ -53,7 +53,7 @@ describe('packages/core/src', () => {
 
   it('reads entity/ for real, so the pass above is not vacuous', () => {
     const readme = readFileSync(`${coreSrc}/entity/README.md`, 'utf8')
-    for (const field of ['id', 'sector', 'moving', 'next', 'speed', 'maxStepMs', 'sectorSize']) {
+    for (const field of ['id', 'sector', 'moving', 'next', 'speed', 'maxStepMs']) {
       expect(readmeDataFields(readme).has(field)).toBe(true)
     }
   })

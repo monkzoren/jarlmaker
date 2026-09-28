@@ -4,6 +4,9 @@
 // (contentlint rejects it).
 
 import type { Content } from '@bastion/core'
+import { biomes } from './biomes/index.ts'
+import { landmarks } from './landmarks/index.ts'
+import { props } from './props/index.ts'
 import * as tuning from './tuning/index.ts'
 
-export const content = { tuning: { ...tuning } } satisfies Content
+export const content = { tuning: { ...tuning }, biomes, props, landmarks } satisfies Content

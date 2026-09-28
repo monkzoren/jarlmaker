@@ -1,2 +1,6 @@
-export type { AnimName, Facing, Frame, SpriteSheet } from './types.ts'
+export type { AnimName, Facing, Frame, Picture, SpriteSheet } from './types.ts'
 export { CASTAWAY } from './characters/castaway.ts'
+export { WORLD_PALETTE } from './palette.ts'
+export { TILES } from './terrain/tiles.ts'
+export { DECALS } from './terrain/decals.ts'
+export { PROP_ART } from './props/props.ts'

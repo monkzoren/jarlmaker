@@ -10,7 +10,9 @@ import { atRest, step } from './rules.ts'
 import type { StepKnobs } from './schema.ts'
 import './events.ts'
 import './tables.ts'
-import { FLAT_WORLD, type WorldView } from './world-view.ts'
+import '../world/schema.ts'
+import { terrainOf } from '../world/rules.ts'
+import type { WorldView } from './world-view.ts'
 
 export function stepKnobs(game: Game): StepKnobs {
   const { movement, world } = game.content.tuning
@@ -21,7 +23,7 @@ export function stepKnobs(game: Game): StepKnobs {
  * Move every entity with input or velocity by `dtMs`. `tick` (the world
  * clock's current tick, P0-025) stamps the events.
  */
-export function moveEntities(store: Store, game: Game, dtMs: number, tick: number, world: WorldView = FLAT_WORLD): void {
+export function moveEntities(store: Store, game: Game, dtMs: number, tick: number, world: WorldView = terrainOf(game)): void {
   const knobs = stepKnobs(game)
   // Materialized first: the loop flips rows out of the index it iterates.
   for (const input of [...store.byIndex('entity_input', 'by_moving', true)]) {

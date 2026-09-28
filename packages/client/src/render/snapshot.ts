@@ -13,6 +13,8 @@ export interface RenderEntity {
 
 export interface RenderSnapshot {
   readonly entities: readonly RenderEntity[]
+  /** Where the camera looks, art pixels (the local player once joined). */
+  readonly focus?: { readonly x: number; readonly y: number }
 }
 
 export interface EntityDiff {
