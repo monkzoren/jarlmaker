@@ -689,7 +689,10 @@ renderer, and a `HOWTO.md` update.
 7. **Reconnect is a feature, not an error path.** Every command carries a
    client nonce; the server dedupes by `(sender, nonce)`. The client queues
    commands for up to 30 s during a dropout, replays them in order on
-   reconnect, and drops the queue with a toast past that. Subscriptions
+   reconnect, and drops the queue with a toast past that. **Movement is the
+   exception (ADR 0008):** after a short grace period, the player's own
+   movement freezes while dropped, offline stick changes are discarded, and
+   on reconnect the client sends its current stick once. Subscriptions
    re-establish from the current sector, and the client reconciles its
    snapshot rather than reloading. Tunnels are the normal case.
 
