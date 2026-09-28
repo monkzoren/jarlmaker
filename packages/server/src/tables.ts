@@ -8,7 +8,7 @@ export const tables = {
   command_nonce: table(
     {
       name: 'command_nonce',
-      public: true,
+      public: false,
     },
     {
       sender: t.string().primaryKey(),
@@ -18,7 +18,7 @@ export const tables = {
   world_clock: table(
     {
       name: 'world_clock',
-      public: true,
+      public: false,
     },
     {
       id: t.string().primaryKey(),

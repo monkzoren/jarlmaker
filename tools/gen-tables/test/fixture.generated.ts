@@ -8,7 +8,7 @@ export const tables = {
   counter: table(
     {
       name: 'counter',
-      public: true,
+      public: false,
     },
     {
       n: t.u64().primaryKey(),
