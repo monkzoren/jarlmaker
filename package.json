@@ -11,7 +11,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "node -e \"console.log('lint: no checks yet')\"",
-    "contentlint": "node -e \"console.log('contentlint: no checks yet')\"",
+    "contentlint": "pnpm --filter @bastion/contentlint run cli",
     "balance": "node -e \"console.log('balance: no checks yet')\"",
     "replay": "node -e \"console.log('replay: no checks yet')\"",
     "smoke": "node -e \"console.log('smoke: no checks yet')\"",
