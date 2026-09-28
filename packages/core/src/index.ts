@@ -74,3 +74,6 @@ export {
   type LoadedContent,
   type TuningRegistry,
 } from './game.ts'
+
+// Systems. Importing each registers its tables, commands, events and tuning.
+export * from './entity/index.ts'

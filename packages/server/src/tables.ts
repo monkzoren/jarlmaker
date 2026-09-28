@@ -15,6 +15,66 @@ export const tables = {
       nonce: t.f64(),
     },
   ),
+  entity: table(
+    {
+      name: 'entity',
+      public: true,
+      indexes: [
+        { accessor: 'by_owner', algorithm: 'btree', columns: ['owner'] },
+      ],
+    },
+    {
+      id: t.i64().primaryKey(),
+      kind: t.string(),
+      def: t.string(),
+      owner: t.string(),
+      level: t.f64(),
+      faction: t.string(),
+    },
+  ),
+  entity_input: table(
+    {
+      name: 'entity_input',
+      public: false,
+      indexes: [
+        { accessor: 'by_moving', algorithm: 'btree', columns: ['moving'] },
+      ],
+    },
+    {
+      id: t.i64().primaryKey(),
+      ix: t.f64(),
+      iy: t.f64(),
+      moving: t.bool(),
+    },
+  ),
+  entity_pos: table(
+    {
+      name: 'entity_pos',
+      public: true,
+      indexes: [
+        { accessor: 'by_sector', algorithm: 'btree', columns: ['sector'] },
+      ],
+    },
+    {
+      id: t.i64().primaryKey(),
+      x: t.f64(),
+      y: t.f64(),
+      vx: t.f64(),
+      vy: t.f64(),
+      facing: t.f64(),
+      sector: t.string(),
+    },
+  ),
+  entity_seq: table(
+    {
+      name: 'entity_seq',
+      public: false,
+    },
+    {
+      name: t.string().primaryKey(),
+      next: t.i64(),
+    },
+  ),
   world_clock: table(
     {
       name: 'world_clock',
@@ -34,6 +94,45 @@ export const tables = {
     "columns": [
       {"name":"sender","type":"string"},
       {"name":"nonce","type":"f64"}
+    ]
+  },
+  "entity": {
+    "pk": "id",
+    "columns": [
+      {"name":"id","type":"i64"},
+      {"name":"kind","type":"string"},
+      {"name":"def","type":"string"},
+      {"name":"owner","type":"string"},
+      {"name":"level","type":"f64"},
+      {"name":"faction","type":"string"}
+    ]
+  },
+  "entity_input": {
+    "pk": "id",
+    "columns": [
+      {"name":"id","type":"i64"},
+      {"name":"ix","type":"f64"},
+      {"name":"iy","type":"f64"},
+      {"name":"moving","type":"bool"}
+    ]
+  },
+  "entity_pos": {
+    "pk": "id",
+    "columns": [
+      {"name":"id","type":"i64"},
+      {"name":"x","type":"f64"},
+      {"name":"y","type":"f64"},
+      {"name":"vx","type":"f64"},
+      {"name":"vy","type":"f64"},
+      {"name":"facing","type":"f64"},
+      {"name":"sector","type":"string"}
+    ]
+  },
+  "entity_seq": {
+    "pk": "name",
+    "columns": [
+      {"name":"name","type":"string"},
+      {"name":"next","type":"i64"}
     ]
   },
   "world_clock": {
