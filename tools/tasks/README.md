@@ -13,6 +13,7 @@ The ledger tooling from CLAUDE.md 4.3, amended by ADR 0003. See
 | `src/validate.ts` | Every ledger rule, plus the generated-file hash check |
 | `src/board.ts`, `src/status.ts` | `docs/BOARD.md` and `docs/STATUS.md` renderers |
 | `src/claim.ts` | `tasks:claim`: re-check, commit, push, race check |
+| `src/new.ts` | `tasks:new`: id allocation across all branches, file writer, exit wiring; `validate --remote` collisions |
 
 `pnpm --filter @bastion/tasks test` runs the unit tests and a real-git
 integration test (a bare origin with three clones racing for claims).

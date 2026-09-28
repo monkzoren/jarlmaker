@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,24 +5,9 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { claim, currentView } from '../src/claim.ts'
 import { next } from '../src/derive.ts'
 import type { Git } from '../src/git.ts'
-import { phase, taskText } from './helpers.ts'
+import { gitAt, phase, taskText } from './helpers.ts'
 
 const NOW = Math.floor(Date.now() / 1000)
-
-/** A git runner with a fixed identity and a controllable commit date. */
-function gitAt(cwd: string, date: () => string): Git {
-  return (args) =>
-    execFileSync('git', args, {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t',
-        GIT_AUTHOR_DATE: date(), GIT_COMMITTER_DATE: date(),
-      },
-    }).trim()
-}
 
 let dir = ''
 const logs: string[] = []
