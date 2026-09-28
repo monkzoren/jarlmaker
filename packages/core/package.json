@@ -1,0 +1,20 @@
+{
+  "name": "@bastion/core",
+  "private": true,
+  "type": "module",
+  "description": "THE GAME: pure rules, store contract, events and commands (CLAUDE.md 3.4). No PixiJS, no spacetimedb.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
