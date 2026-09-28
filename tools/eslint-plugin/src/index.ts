@@ -17,4 +17,6 @@ const plugin: ESLint.Plugin = {
   },
 }
 
+export { shippedLayeringConfigs } from './rules/layering.ts'
+
 export default plugin

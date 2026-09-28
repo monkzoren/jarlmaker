@@ -6,7 +6,25 @@ import type { Node } from 'estree'
 export const DEFAULT_ROOT = 'packages/core'
 export const DEFAULT_FORBIDDEN = ['pixi.js', 'spacetimedb', '@bastion/server', '@bastion/client']
 
-interface Options {
+/** CLAUDE.md 3.4: MemoryStore is a test fixture, never shipped. Test-only entry points of core. */
+export const TEST_ONLY_MODULES = ['@bastion/core/testing']
+/** Packages whose non-test source ships to players or the server. */
+export const SHIPPED_PACKAGES = ['packages/client', 'packages/server', 'packages/commerce']
+
+/**
+ * Flat-config blocks that keep shipped source off the test-only entries: one per
+ * shipped package, `root` set to that package, test files exempt. Spread into
+ * `eslint.config.js`; the RuleTester suite runs the same options.
+ */
+export function shippedLayeringConfigs(): { files: string[]; ignores: string[]; rules: { '@bastion/layering': ['error', Options] } }[] {
+  return SHIPPED_PACKAGES.map((root) => ({
+    files: [`${root}/src/**`],
+    ignores: ['**/*.test.ts'],
+    rules: { '@bastion/layering': ['error', { root, forbidden: [...TEST_ONLY_MODULES] }] },
+  }))
+}
+
+export interface Options {
   /** The package these files belong to; relative imports may not leave it. Relative to the lint cwd, or absolute. */
   root?: string
   /** Bare module names this package may not import, including their subpaths. */
@@ -37,7 +55,7 @@ export const layering: Rule.RuleModule = {
       },
     ],
     messages: {
-      forbiddenModule: "'{{spec}}' may not be imported from {{root}} (CLAUDE.md 3.3: core imports nothing from a host or renderer).",
+      forbiddenModule: "'{{spec}}' may not be imported from {{root}} (CLAUDE.md 3.3/3.4: core imports no host or renderer; shipped code imports no test fixture).",
       escapesRoot: "'{{spec}}' reaches outside {{root}}. Import another package by its name, never by a relative path.",
     },
   },

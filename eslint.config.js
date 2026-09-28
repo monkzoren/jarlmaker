@@ -1,6 +1,6 @@
 // Root ESLint flat config (CLAUDE.md 3.2). `pnpm lint` runs it over the whole
 // repo. The architecture police live in tools/eslint-plugin.
-import bastion from '@bastion/eslint-plugin'
+import bastion, { shippedLayeringConfigs } from '@bastion/eslint-plugin'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
@@ -30,6 +30,9 @@ export default tseslint.config(
       '@bastion/layering': 'error',
     },
   },
+  // MemoryStore (@bastion/core/testing) never ships: client, server and
+  // commerce source may not import it; their *.test.ts files may.
+  ...shippedLayeringConfigs(),
   {
     files: ['packages/client/**', 'packages/content/**'],
     rules: {
