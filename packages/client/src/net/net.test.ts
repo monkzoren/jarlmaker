@@ -73,12 +73,13 @@ describe('createNonceSource', () => {
 
 describe('snapshot store', () => {
   const entity = (id: bigint) => ({ id, kind: 'player', owner: `owner-${id}` })
+  const pos = (id: bigint, x: number, y: number) => ({ id, x, y, vx: 0, vy: 0, facing: 0, sector: '0,0' })
 
   it('renders only entities with both rows, in pixels, keyed by id', () => {
     const s = createSnapshotStore()
     s.upsertEntity(entity(1n))
-    s.upsertPos({ id: 1n, x: 2, y: -0.5 })
-    s.upsertPos({ id: 2n, x: 9, y: 9 }) // no entity row yet
+    s.upsertPos(pos(1n, 2, -0.5))
+    s.upsertPos(pos(2n, 9, 9)) // no entity row yet
     expect(s.toRenderSnapshot()).toEqual({ entities: [{ id: '1', x: 2 * TILE_PX, y: -0.5 * TILE_PX }] })
     expect(s.size).toBe(1)
     s.upsertEntity(entity(2n))
@@ -88,12 +89,12 @@ describe('snapshot store', () => {
   it('updates in place and forgets deleted rows', () => {
     const s = createSnapshotStore()
     s.upsertEntity(entity(1n))
-    s.upsertPos({ id: 1n, x: 0, y: 0 })
-    s.upsertPos({ id: 1n, x: 1, y: 0 })
+    s.upsertPos(pos(1n, 0, 0))
+    s.upsertPos(pos(1n, 1, 0))
     expect(s.toRenderSnapshot().entities).toEqual([{ id: '1', x: TILE_PX, y: 0 }])
     s.deletePos(1n)
     expect(s.toRenderSnapshot().entities).toEqual([])
-    s.upsertPos({ id: 1n, x: 1, y: 0 })
+    s.upsertPos(pos(1n, 1, 0))
     s.deleteEntity(1n)
     expect(s.size).toBe(0)
   })
@@ -123,7 +124,7 @@ describe('statusText', () => {
 })
 
 describe('subscriptions', () => {
-  it('cover the two public entity tables (whole tables until P1-017)', () => {
-    expect(SUBSCRIPTIONS).toEqual(['SELECT * FROM entity', 'SELECT * FROM entity_pos'])
+  it('cover the public entity tables and the world clock (whole tables until P1-017)', () => {
+    expect(SUBSCRIPTIONS).toEqual(['SELECT * FROM entity', 'SELECT * FROM entity_pos', 'SELECT * FROM world_clock'])
   })
 })

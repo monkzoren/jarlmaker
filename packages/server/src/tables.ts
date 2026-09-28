@@ -78,7 +78,7 @@ export const tables = {
   world_clock: table(
     {
       name: 'world_clock',
-      public: false,
+      public: true,
     },
     {
       id: t.string().primaryKey(),
