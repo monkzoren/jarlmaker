@@ -45,3 +45,32 @@ Tables are append-only once published: never rename or repurpose a column.
 
 `Id` is the bound on pk types. `get` and `delete` take the specific table's
 pk type (`PkOf<T>`), which is a subtype of `Id`.
+
+## MemoryStore (the test host)
+
+`MemoryStore` (`memory.ts`) is the `Store` in maps, for unit tests, replay,
+the balance harness and the quest solver. It is a fixture, never shipped, so
+it is exported from `@bastion/core/testing`, not the main barrel:
+
+```ts
+import { createRng, MemoryStore } from '@bastion/core/testing'
+const store = new MemoryStore({ seed: 42, now: 1000 })
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `seed` | `0` | Integer seed of the store's `Rng` (`createRng(seed)`, sfc32). |
+| `now` | `0` | Initial clock, integer ms since epoch. |
+| `tables` | every registered table (`TABLES`) at construction | The table declarations to host. Pass fixture tables here to keep them out of the real registry. |
+
+Test-host controls (not part of `Store`, so rules cannot call them):
+
+| Method | Does |
+|---|---|
+| `setNow(t)` | Set the clock to integer ms `t`. |
+| `advance(ms)` | Move the clock forward by `ms >= 0`. |
+| `events()` | A copy of the emitted events, oldest first. |
+| `clearEvents()` | Empty the event log. |
+
+Indexes are real maps maintained on write, so `byIndex` never filters all
+rows, and there is no scan here either.
