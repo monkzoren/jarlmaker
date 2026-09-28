@@ -10,6 +10,14 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const BuildInfo = __t.object("BuildInfo", {});
+export type BuildInfo = __Infer<typeof BuildInfo>;
+
+export const BuildInfoRow = __t.object("BuildInfoRow", {
+  buildId: __t.string(),
+});
+export type BuildInfoRow = __Infer<typeof BuildInfoRow>;
+
 export const CommandNonce = __t.object("CommandNonce", {
   sender: __t.string(),
   nonce: __t.f64(),
