@@ -15,6 +15,12 @@ export default tseslint.config(
       // Registries (TuningRegistry, ContentRegistry, ...) are empty interfaces
       // that systems extend by declaration merging; that is the contract.
       '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'always' }],
+      // `const { id: _id, ...rest } = row` is the idiom for dropping a field;
+      // a leading underscore marks anything deliberately unused.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { ignoreRestSiblings: true, argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
     },
   },
   {
