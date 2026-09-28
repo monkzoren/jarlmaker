@@ -3,8 +3,9 @@ import { join, resolve } from 'node:path'
 import { renderBoard } from './board.ts'
 import { claim, currentView } from './claim.ts'
 import { next, view } from './derive.ts'
-import { gitIn } from './git.ts'
+import { baseRef, gitIn, tryGit } from './git.ts'
 import { loadFromDisk } from './load.ts'
+import { newTask, remoteCollisions } from './new.ts'
 import { doneByDay, renderStatus } from './status.ts'
 import { validateGenerated, validateTasks } from './validate.ts'
 
@@ -20,12 +21,17 @@ const opt = (name: string): string | undefined => {
   return i >= 0 ? rest[i + 1] : undefined
 }
 const positional = rest.filter((a, i) => !a.startsWith('--') && !rest[i - 1]?.match(/^--(lane|phase|owner)$/))
+const list = (name: string): string[] => (opt(name) ?? '').split(',').map((s) => s.trim()).filter(Boolean)
 
 function run(): number {
   switch (cmd) {
     case 'validate': {
       const r = validateTasks(loadFromDisk(ROOT))
       const gen = validateGenerated(ROOT)
+      if (flag('remote')) {
+        if (tryGit(git, ['fetch', '--quiet', '--prune', 'origin']) === undefined) gen.push('--remote: `git fetch origin` failed')
+        gen.push(...remoteCollisions(git, baseRef(git)))
+      }
       for (const w of r.warnings) console.warn(`warning: ${w}`)
       for (const e of [...r.errors, ...gen]) console.error(`error: ${e}`)
       const n = loadFromDisk(ROOT).tasks.length
@@ -77,8 +83,22 @@ function run(): number {
         ...(owner ? { owner } : {}),
       })
     }
+    case 'new': {
+      const [phase, lane, title] = [opt('phase'), opt('lane'), opt('title')]
+      if (!phase || !lane || !title) {
+        log('usage: pnpm tasks:new --phase P0 --lane core --title "…" --touches "a/**,b.ts" [--system s] [--size S|M|L]')
+        log('         [--depends-on P0-001,P0-002] [--discovered-by P0-005] [--local]')
+        return 1
+      }
+      const [system, size, discoveredBy] = [opt('system'), opt('size'), opt('discovered-by')]
+      return newTask({
+        root: ROOT, git, phase, lane, title, dependsOn: list('depends-on'), touches: list('touches'),
+        remote: !flag('local'), log,
+        ...(system ? { system } : {}), ...(size ? { size } : {}), ...(discoveredBy ? { discoveredBy } : {}),
+      })
+    }
     default:
-      log('usage: tasks <validate | board [--live] | status | next [--lane X] [--phase P] [--local] | claim <id>>')
+      log('usage: tasks <validate [--remote] | board [--live] | status | next [--lane X] [--phase P] [--local] | claim <id> | new --phase P --lane L --title T --touches G>')
       return cmd === 'help' ? 0 : 1
   }
 }

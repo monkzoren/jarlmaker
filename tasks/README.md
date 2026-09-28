@@ -18,8 +18,13 @@ short version.
    `task/<id>` first. If it says another branch won the race, revert the
    claim commit and run `tasks:next` again.
 5. Work only inside the task's `touches`. Anything else you find becomes a
-   **new** task file (`discovered_by: <your id>`, `status: todo`). Do not
-   widen your task.
+   **new** task file. Never hand-pick its id: run
+   `pnpm tasks:new --phase P0 --lane core --title "…" --touches "a/**,b.ts"`.
+   It picks an id unused on `main` and on every remote branch, fills in
+   `discovered_by` with the task claimed on your branch, and adds the id to
+   the phase's exit task. Fill in its Goal and Definition of done, then
+   **commit and push it right away**: until you push, another worker can
+   still take the same id. Do not widen your task.
 6. Run every check locally (`pnpm build lint test contentlint balance replay
    worldgold tasks:validate`, plus `smoke` when you touched net/server/client).
 7. Tick the DoD boxes, set `status: done`, and push. Open one PR titled
@@ -51,7 +56,8 @@ One task per session and one task per PR. Report what you could not verify.
 |---|---|
 | `pnpm tasks:next [--lane X] [--phase P] [--local]` | Highest-priority ready task with no lane/touches conflict |
 | `pnpm tasks:claim <id> [--owner name] [--no-push]` | Claim it (commit + push) |
-| `pnpm tasks:validate` | Ledger rules. Runs in CI. |
+| `pnpm tasks:new --phase P --lane L --title T --touches G [--system s] [--size S] [--depends-on ids] [--discovered-by id] [--local]` | File a new task with a collision-free id |
+| `pnpm tasks:validate [--remote]` | Ledger rules. Runs in CI. `--remote` also reports ids filed twice across `main` and remote branches |
 | `pnpm tasks:board [--live]` | Regenerate `docs/BOARD.md` (`--live` prints main + branch claims instead) |
 | `pnpm tasks:status` | Regenerate `docs/STATUS.md` |
 
@@ -60,7 +66,8 @@ hash, and CI regenerates them on `main`. PRs don't commit them.
 
 ## Writing a task (Planner, or a worker filing discovered work)
 
-Copy any P0 file as a template. The frontmatter keys are fixed (unknown keys
+Use `pnpm tasks:new` (step 5 above), or copy any P0 file as a template
+when planning a whole phase. The frontmatter keys are fixed (unknown keys
 fail validation). Two rules:
 
 - **Granularity:** ≤ ~400 changed lines, ≤ 2 packages, 1 lane.

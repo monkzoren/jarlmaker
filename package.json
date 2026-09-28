@@ -22,6 +22,7 @@
     "tasks:next": "pnpm --filter @bastion/tasks run cli next",
     "tasks:claim": "pnpm --filter @bastion/tasks run cli claim",
     "tasks:status": "pnpm --filter @bastion/tasks run cli status",
+    "tasks:new": "pnpm --filter @bastion/tasks run cli new",
     "server:up": "pnpm --filter @bastion/server server:up",
     "server:down": "pnpm --filter @bastion/server server:down",
     "server:publish": "pnpm --filter @bastion/server server:publish",
