@@ -8,9 +8,10 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "build": "node tools/build-id/src/cli.ts -- turbo run build",
+    "build-id": "node tools/build-id/src/cli.ts",
+    "typecheck": "node tools/build-id/src/cli.ts -- turbo run typecheck",
+    "test": "node tools/build-id/src/cli.ts -- turbo run test",
     "lint": "eslint . --max-warnings 0",
     "contentlint": "pnpm --filter @bastion/contentlint run cli",
     "gen:tables": "pnpm --filter @bastion/gen-tables run gen",
@@ -26,8 +27,8 @@
     "tasks:new": "pnpm --filter @bastion/tasks run cli new",
     "server:up": "pnpm --filter @bastion/server server:up",
     "server:down": "pnpm --filter @bastion/server server:down",
-    "server:publish": "pnpm --filter @bastion/server server:publish",
-    "server:bindings": "pnpm --filter @bastion/server server:bindings",
+    "server:publish": "node tools/build-id/src/cli.ts -- pnpm --filter @bastion/server server:publish",
+    "server:bindings": "node tools/build-id/src/cli.ts -- pnpm --filter @bastion/server server:bindings",
     "server:cli": "pnpm --filter @bastion/server server:cli"
   },
   "devDependencies": {

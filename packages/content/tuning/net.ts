@@ -11,4 +11,15 @@ export const net = {
   // Hard cap on queued commands, so a long dropout can't grow the queue without
   // bound. 30 s of input at the tick rate.
   reconnectQueueMax: 300,
+  // Client view (P0-015). Remote entities are drawn this many ticks in the
+  // past and interpolated between server updates: two ticks hides one late
+  // update without making other players feel laggy.
+  remoteDelayTicks: 2,
+  // When the server corrects the local player's prediction, the visible
+  // error decays with this time constant instead of snapping. Short enough
+  // that a correction never reads as drift, long enough to hide the jump.
+  correctionSmoothMs: 100,
+  // A correction larger than this (a teleport, a respawn, a long dropout)
+  // snaps instead of sliding across the map.
+  correctionSnapCells: 2,
 }

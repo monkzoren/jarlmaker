@@ -6,10 +6,16 @@
 //
 // Hosts count the same way: a replay script's Nth `tick` step (P0-017) runs
 // tick N.
+//
+// Public (P0-015): client prediction reads the tick number to know which of
+// its inputs the server has simulated. One tiny row, once per tick.
 
 import { z } from 'zod'
 import type { Store } from '../store/types.ts'
 import { defineTable, registerTables } from '../store/tables.ts'
+// The clock's rate lives in the `net` tuning section; every host that ticks
+// loads this module, so this import registers `net` for all of them.
+import './net.ts'
 
 /** The singleton row's primary key. */
 const CLOCK_ID = 'world'
@@ -18,6 +24,7 @@ export const worldClock = defineTable({
   name: 'world_clock',
   row: z.object({ id: z.string(), tick: z.int().nonnegative() }),
   pk: 'id',
+  public: true,
 })
 registerTables(worldClock)
 

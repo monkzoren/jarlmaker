@@ -1,0 +1,15 @@
+{
+  "name": "@bastion/build-id",
+  "private": true,
+  "type": "module",
+  "description": "The one BUILD_ID (git short SHA + UTC build time), stamped by the build into the client bundle and the server module (CLAUDE.md 3.6 rule 6)",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
