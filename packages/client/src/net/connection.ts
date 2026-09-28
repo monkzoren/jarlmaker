@@ -1,6 +1,7 @@
 /**
  * The SpacetimeDB connection. Each link connects with the stored token (same
- * identity across reloads and reconnects), subscribes to the public entity
+ * identity across reloads and reconnects; a token the server rejects is
+ * forgotten, so the next link connects as a fresh identity), subscribes to the public entity
  * tables, and mirrors their rows into the one `SnapshotStore`. When the
  * subscription applies, the snapshot is reconciled against the server's rows
  * (rows deleted during a dropout go away; nothing is reloaded). The
@@ -20,7 +21,7 @@ import type { NonceSource } from './nonce.ts'
 import type { SnapshotStore } from './snapshot.ts'
 import { createReconnector, type Link, type LinkHandlers, type PhaseInfo, type ReconnectKnobs, type Timers } from './reconnect.ts'
 import type { ConnState } from './status.ts'
-import { loadToken, saveToken, type TokenStorage } from './token.ts'
+import { forgetRejectedToken, loadToken, saveToken, type TokenStorage } from './token.ts'
 
 // TODO(P1-017): whole tables are fine for P0; replace with the 3x3 sector
 // window (CLAUDE.md 3.6 rule 1) before anything else subscribes here.
@@ -142,7 +143,11 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
         .subscribe([...SUBSCRIPTIONS])
     })
     .onConnectError((_ctx, err) => {
-      if (live) h.lost(message(err))
+      if (!live) return
+      // A rejected token is dropped here; the reconnector's next attempt then
+      // loads none and the server issues a fresh identity (P0-042).
+      forgetRejectedToken(storage, config.tokenKey, err)
+      h.lost(message(err))
     })
     .onDisconnect((_ctx, err) => {
       if (live) h.lost(err === undefined ? undefined : message(err))

@@ -5,7 +5,7 @@ import { DEFAULT_MODULE, DEFAULT_PORT, readNetConfig } from './config.ts'
 import { createNonceSource } from './nonce.ts'
 import { createSnapshotStore } from './snapshot.ts'
 import { statusText } from './status.ts'
-import { loadToken, saveToken, type TokenStorage } from './token.ts'
+import { clearToken, loadToken, saveToken, type TokenStorage } from './token.ts'
 
 const page = { hostname: '192.168.1.5', protocol: 'http:', search: '' }
 
@@ -38,7 +38,7 @@ describe('readNetConfig', () => {
 describe('token storage', () => {
   it('round-trips and survives missing or throwing storage', () => {
     const m = new Map<string, string>()
-    const mem: TokenStorage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => void m.set(k, v) }
+    const mem: TokenStorage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => void m.set(k, v), removeItem: (k) => void m.delete(k) }
     expect(loadToken(mem, 'k')).toBeUndefined()
     saveToken(mem, 'k', 'tok')
     expect(loadToken(mem, 'k')).toBe('tok')
@@ -50,9 +50,13 @@ describe('token storage', () => {
       setItem: () => {
         throw new Error('blocked')
       },
+      removeItem: () => {
+        throw new Error('blocked')
+      },
     }
     expect(loadToken(broken, 'k')).toBeUndefined()
     expect(() => saveToken(broken, 'k', 'tok')).not.toThrow()
+    expect(() => clearToken(broken, 'k')).not.toThrow()
     expect(loadToken(undefined, 'k')).toBeUndefined()
   })
 })
