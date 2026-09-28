@@ -21,9 +21,6 @@ import {
 import { createRenderer } from './render/index.ts'
 import { createConnectionHud } from './ui/connection/index.ts'
 
-// Temporary until P0-034 adds `tuning.input`: the input knobs have no home yet.
-const STICK = { deadZone: 0.2, stickRadiusPx: 48 }
-
 const host = document.getElementById('game')
 if (!host) throw new Error('#game host element missing')
 
@@ -36,7 +33,7 @@ document.body.appendChild(hud)
 // The same validated content the server loads, so prediction steps with the
 // server's own knobs and tick length.
 const game = createGame(content)
-const { net } = content.tuning
+const { net, input } = content.tuning
 const dtMs = MS_PER_SECOND / net.tickHz
 
 const connHud = createConnectionHud()
@@ -78,7 +75,7 @@ const play = createPlay({
   }),
 })
 
-createInput(play.sink, { knobs: { tickHz: net.tickHz, ...STICK } })
+createInput(play.sink, { knobs: { tickHz: net.tickHz, deadZone: input.deadZone, stickRadiusPx: input.stickRadiusPx } })
 setInterval(() => play.tick(), dtMs)
 
 const frame = (): void => {
