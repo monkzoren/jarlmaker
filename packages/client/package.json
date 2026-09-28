@@ -11,9 +11,11 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@bastion/core": "workspace:*",
     "pixi.js": "8.21.0"
   },
   "devDependencies": {
+    "jsdom": "29.1.1",
     "typescript": "5.9.3",
     "vite": "8.3.1",
     "vitest": "4.1.11"
