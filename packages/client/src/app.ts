@@ -2,7 +2,8 @@
  * Client wiring point (ADR 0001: the client renders, it computes no rules).
  * Net (P0-013) mirrors server rows into a snapshot; input (P0-014) feeds the
  * play loop (P0-015), which sends moves, predicts the local player with
- * core's `step`, and hands the renderer one snapshot per frame.
+ * core's `step`, and hands the renderer one snapshot per frame. Dropouts
+ * (P0-016) queue moves and reconnect behind a quiet pip; the page never reloads.
  */
 import { content } from '@bastion/content'
 import { createGame, FLAT_WORLD, MS_PER_SECOND, stepKnobs } from '@bastion/core'
@@ -18,6 +19,7 @@ import {
   statusText,
 } from './net/index.ts'
 import { createRenderer } from './render/index.ts'
+import { createConnectionHud } from './ui/connection/index.ts'
 
 // Temporary until P0-034 adds `tuning.input`: the input knobs have no home yet.
 const STICK = { deadZone: 0.2, stickRadiusPx: 48 }
@@ -37,6 +39,7 @@ const game = createGame(content)
 const { net } = content.tuning
 const dtMs = MS_PER_SECOND / net.tickHz
 
+const connHud = createConnectionHud()
 const renderer = await createRenderer(host)
 const snapshot = createSnapshotStore()
 const nonces = createNonceSource()
@@ -46,11 +49,14 @@ const connection = connect({
   snapshot,
   nonces,
   storage: safeLocalStorage(),
+  queue: { seconds: net.reconnectQueueSeconds, max: net.reconnectQueueMax },
   onState: (s) => {
     hud.textContent = statusText(s)
     hud.dataset['state'] = s.kind
+    connHud.update(s)
   },
   onJoined: (identity) => play.joined(identity),
+  onQueueDropped: (dropped) => connHud.queueDropped(dropped),
 })
 
 const play = createPlay({

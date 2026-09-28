@@ -33,6 +33,11 @@ export interface SnapshotStore {
   positions(): Iterable<EntityPosRow>
   /** Drop every row (a fresh subscription replaces the whole view). */
   clear(): void
+  /**
+   * Make the rows exactly these (a resubscription after a dropout). Rows the
+   * server no longer has go away; the clock is kept until the server sends one.
+   */
+  replace(entities: Iterable<EntityRow>, positions: Iterable<EntityPosRow>): void
   /** Entities with both an `entity` and an `entity_pos` row, in pixels. */
   toRenderSnapshot(): RenderSnapshot
   readonly size: number
@@ -83,6 +88,13 @@ export function createSnapshotStore(): SnapshotStore {
       entities.clear()
       positions.clear()
       clock = 0
+      changed()
+    },
+    replace(es, ps) {
+      entities.clear()
+      positions.clear()
+      for (const e of es) entities.set(String(e.id), e)
+      for (const p of ps) positions.set(String(p.id), p)
       changed()
     },
     toRenderSnapshot() {

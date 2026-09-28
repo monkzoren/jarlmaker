@@ -1,9 +1,11 @@
-/** Connection state as the HUD shows it. The reconnect pip is P0-015. */
+/** Connection state as the debug line shows it; the reconnect pip reads it too (ui/connection). */
 
 export type ConnState =
   | { readonly kind: 'connecting'; readonly uri: string }
   | { readonly kind: 'connected'; readonly identity: string }
   | { readonly kind: 'joined'; readonly identity: string; readonly entities: number }
+  | { readonly kind: 'dropped'; readonly queued: number; readonly attempt: number; readonly reason?: string | undefined }
+  | { readonly kind: 'reconnecting'; readonly queued: number; readonly attempt: number }
   | { readonly kind: 'disconnected'; readonly reason?: string | undefined }
   | { readonly kind: 'error'; readonly reason: string }
 
@@ -16,6 +18,10 @@ export function statusText(s: ConnState): string {
       return `connected as ${short(s.identity)}`
     case 'joined':
       return `online as ${short(s.identity)} | ${s.entities} in view`
+    case 'dropped':
+      return `dropped${s.reason === undefined ? '' : `: ${s.reason}`} | ${s.queued} queued`
+    case 'reconnecting':
+      return `reconnecting (attempt ${s.attempt}) | ${s.queued} queued`
     case 'disconnected':
       return s.reason === undefined ? 'disconnected' : `disconnected: ${s.reason}`
     case 'error':

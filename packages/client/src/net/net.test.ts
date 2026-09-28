@@ -99,6 +99,21 @@ describe('snapshot store', () => {
     expect(s.size).toBe(0)
   })
 
+  it('replace reconciles to the server rows after a resubscribe, keeping the clock', () => {
+    const s = createSnapshotStore()
+    s.upsertEntity(entity(1n))
+    s.upsertPos(pos(1n, 0, 0))
+    s.upsertEntity(entity(2n)) // left during the dropout
+    s.upsertPos(pos(2n, 5, 5))
+    s.setClock(40)
+    let n = 0
+    s.onChange(() => n++)
+    s.replace([entity(1n)], [pos(1n, 3, 0)])
+    expect(s.toRenderSnapshot().entities).toEqual([{ id: '1', x: 3 * TILE_PX, y: 0 }])
+    expect(s.clock).toBe(40)
+    expect(n).toBe(1)
+  })
+
   it('notifies on change and stops after unsubscribe', () => {
     const s = createSnapshotStore()
     let n = 0
@@ -117,6 +132,9 @@ describe('statusText', () => {
     expect(statusText({ kind: 'connecting', uri: 'ws://h:3000' })).toBe('connecting to ws://h:3000')
     expect(statusText({ kind: 'connected', identity: 'abcdef0123456789' })).toBe('connected as abcdef01')
     expect(statusText({ kind: 'joined', identity: 'abcdef0123456789', entities: 2 })).toBe('online as abcdef01 | 2 in view')
+    expect(statusText({ kind: 'dropped', queued: 2, attempt: 1, reason: 'socket closed' })).toBe('dropped: socket closed | 2 queued')
+    expect(statusText({ kind: 'dropped', queued: 0, attempt: 1 })).toBe('dropped | 0 queued')
+    expect(statusText({ kind: 'reconnecting', queued: 3, attempt: 2 })).toBe('reconnecting (attempt 2) | 3 queued')
     expect(statusText({ kind: 'disconnected' })).toBe('disconnected')
     expect(statusText({ kind: 'disconnected', reason: 'socket closed' })).toBe('disconnected: socket closed')
     expect(statusText({ kind: 'error', reason: 'x' })).toBe('error: x')
