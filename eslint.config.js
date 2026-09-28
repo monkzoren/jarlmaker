@@ -36,4 +36,17 @@ export default tseslint.config(
       '@bastion/no-emoji': 'error',
     },
   },
+  {
+    files: ['packages/core/src/**/rules.ts', 'packages/core/src/**/tick.ts'],
+    rules: {
+      '@bastion/no-tunable-literal': 'error',
+    },
+  },
+  {
+    // Exceptions live in tools/eslint-plugin/src/rules/no-tick-scan.allowlist.ts.
+    files: ['packages/server/src/**'],
+    rules: {
+      '@bastion/no-tick-scan': 'error',
+    },
+  },
 )
