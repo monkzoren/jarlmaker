@@ -1,16 +1,17 @@
 {
   "name": "bastion",
   "private": true,
+  "type": "module",
   "description": "Jarlmaker (codename Bastion 2.0) monorepo",
   "packageManager": "pnpm@10.33.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "lint": "node -e \"console.log('lint: no checks yet')\"",
+    "lint": "eslint . --max-warnings 0",
     "contentlint": "pnpm --filter @bastion/contentlint run cli",
     "balance": "node -e \"console.log('balance: no checks yet')\"",
     "replay": "node -e \"console.log('replay: no checks yet')\"",
@@ -28,8 +29,11 @@
     "server:cli": "pnpm --filter @bastion/server server:cli"
   },
   "devDependencies": {
+    "@bastion/eslint-plugin": "workspace:*",
+    "eslint": "10.11.0",
     "turbo": "2.11.4",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
