@@ -2,17 +2,16 @@
 // compare it with its golden. Pure apart from the files the CLI reads and
 // writes, so the tests call it with a changed rule and read the diff.
 
-import { currentTick, execute, TABLES, tick, type DispatchTable, type Game, type SystemTick } from '@bastion/core'
+import { currentTick, execute, SYSTEM_TICKS, TABLES, tick, type DispatchTable, type Game, type SystemTick } from '@bastion/core'
 import { MemoryStore } from '@bastion/core/testing'
 import { lineDiff } from './diff.ts'
 import { canonical, formatResult, type Result, type Script } from './format.ts'
-import { REPLAY_SYSTEMS } from './systems.ts'
 import { TrackingStore } from './tracking-store.ts'
 
 export interface RunOptions {
   /** Default: core's REGISTRY. */
   readonly registry?: DispatchTable
-  /** Default: `REPLAY_SYSTEMS` (core's SYSTEM_TICKS). Tests pass a changed rule here. */
+  /** Default: core's SYSTEM_TICKS. Tests pass a changed rule here. */
   readonly systems?: readonly SystemTick[]
 }
 
@@ -20,7 +19,7 @@ export function runScript(game: Game, script: Script, options: RunOptions = {}):
   const memory = new MemoryStore({ seed: script.seed, now: script.now })
   const host = new TrackingStore(memory, TABLES)
   const store = host.store
-  const systems = options.systems ?? REPLAY_SYSTEMS
+  const systems = options.systems ?? SYSTEM_TICKS
   const advanceTo = (target: number) => {
     while (currentTick(store) < target) {
       memory.advance(script.dtMs)
