@@ -1,5 +1,9 @@
 // @bastion/core — THE GAME (CLAUDE.md 3.3). Pure TypeScript: nothing from
 // `server`, `client`, `@bastion/content`, PixiJS or spacetimedb.
+//
+// The test host (`MemoryStore`, `createRng`) is exported from
+// `@bastion/core/testing` (`./testing.ts`), never from here, so the client
+// cannot bundle it.
 
 export type {
   Id,

@@ -28,6 +28,14 @@ const game = createGame(content)              // throws ContentError with dotted
 // then execute(game, store, sender, envelope) / tick(game, store, dt), P0-006
 ```
 
+## Test host
+
+`@bastion/core/testing` exports `MemoryStore`, `MemoryStoreOptions` and
+`createRng` for anything that runs `core` without a server (tests,
+`tools/replay`, `tools/balance`, the quest solver). It is a separate entry so
+the client, which imports `@bastion/core`, never bundles the fixture. See
+`src/store/README.md`.
+
 ## Scripts
 
 `pnpm typecheck` (tsc, including the type-level tests) and `pnpm test` (vitest).
