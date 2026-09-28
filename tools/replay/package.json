@@ -1,0 +1,22 @@
+{
+  "name": "@bastion/replay",
+  "private": true,
+  "type": "module",
+  "description": "pnpm replay: recorded command scripts through core on MemoryStore vs committed goldens (CLAUDE.md 3.4, 3.8)",
+  "scripts": {
+    "cli": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bastion/content": "workspace:*",
+    "@bastion/core": "workspace:*",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
