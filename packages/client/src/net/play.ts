@@ -7,6 +7,7 @@
  */
 import type { CommandSink } from '../input/index.ts'
 import type { RenderSnapshot } from '../render/index.ts'
+import { TILE_PX } from '../render/zoom.ts'
 import type { NonceSource } from './nonce.ts'
 import type { Predictor } from './predict.ts'
 import type { SnapshotStore } from './snapshot.ts'
@@ -30,6 +31,8 @@ export interface Play {
   tick(): void
   /** What to draw now. */
   frame(): RenderSnapshot
+  /** Where the last frame drew the local player, in cells (the smoke suite reads it). */
+  drawn(): { readonly x: number; readonly y: number } | undefined
 }
 
 interface Stick {
@@ -42,6 +45,7 @@ export function createPlay(deps: PlayDeps): Play {
   let identity: string | undefined
   let held: Stick | undefined
   let sampledClock = -1
+  let last: RenderSnapshot | undefined
 
   const send = (stick: Stick): void => {
     const nonce = nonces.next()
@@ -79,7 +83,13 @@ export function createPlay(deps: PlayDeps): Play {
         const own = identity === undefined ? undefined : snapshot.playerPos(identity)
         view.server(snapshot.positions(), own === undefined ? undefined : String(own.id), t)
       }
-      return view.frame(t)
+      last = view.frame(t)
+      return last
+    },
+    drawn() {
+      const own = identity === undefined ? undefined : snapshot.playerPos(identity)
+      const e = own === undefined ? undefined : last?.entities.find((r) => r.id === String(own.id))
+      return e === undefined ? undefined : { x: e.x / TILE_PX, y: e.y / TILE_PX }
     },
   }
 }

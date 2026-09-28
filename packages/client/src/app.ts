@@ -81,6 +81,10 @@ const play = createPlay({
   }),
 })
 
+// Read-only probe for the smoke suite (tests/smoke/offline-tap.ts): where the
+// local player was last drawn. Nothing reads it per frame.
+Object.assign(window, { bastionProbe: { drawn: () => play.drawn() } })
+
 createInput(play.sink, { knobs: { tickHz: net.tickHz, deadZone: input.deadZone, stickRadiusPx: input.stickRadiusPx } })
 setInterval(() => play.tick(), dtMs)
 
