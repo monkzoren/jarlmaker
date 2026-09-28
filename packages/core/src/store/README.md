@@ -32,12 +32,20 @@ export const entityPos = defineTable({
   row: z.object({ id: z.bigint(), x: z.number(), y: z.number(), sector: z.string() }),
   pk: 'id',                                            // a string/number/bigint column
   indexes: [{ name: 'by_sector', columns: ['sector'] }],
+  public: true,                                        // clients may subscribe; omit => private
 })
 registerTables(entityPos)                              // runtime: TABLES, tableList()
 declare module '../store/tables.ts' {                  // types: TableName, Row, IndexOf, ...
   interface TableRegistry { entity_pos: typeof entityPos }
 }
 ```
+
+`public` defaults to `false`: a table is server-only unless its declaration
+opts in, so wallets, the purchase ledger and other private state are never
+exposed to clients by accident. Set `public: true` on tables clients subscribe
+to (e.g. `entity_pos`, by sector window, CLAUDE.md 3.6). Visibility is not part
+of the stored row layout, so changing it is not an append-only violation.
+Row-level visibility (chat) is a separate, later mechanism.
 
 `byIndex` only accepts index names the declaration lists, and only values of
 the indexed columns' types; `tables.test.ts` proves it with `@ts-expect-error`.

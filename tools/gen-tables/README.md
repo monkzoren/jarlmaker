@@ -2,7 +2,8 @@
 
 Table shapes are declared once, in `core` (`defineTable` + `registerTables`,
 CLAUDE.md 3.4). This tool writes `packages/server/src/tables.ts`: one
-SpacetimeDB `table()` per registered table, same columns, pk and indexes.
+SpacetimeDB `table()` per registered table, same columns, pk and indexes, and
+`public` from the declaration (private unless it says `public: true`).
 MemoryStore reads the declarations at runtime and needs no generation.
 
 ```sh
@@ -38,6 +39,9 @@ value type is identical on both sides, which is why `z.number()` is `f64`: an
 integer id or indexed number column must be `z.int32()`, `z.uint32()` or a bigint.
 
 ## Append-only
+
+Visibility (`public`) is not in the manifest: flipping it is allowed and
+never trips the append-only check.
 
 The generated file ends with a manifest of each table's pk and column types.
 A run fails, writing nothing, when a committed table disappears, its pk

@@ -2,6 +2,8 @@
 // `core`, as plain data: a Zod row schema, a primary-key column, and a list of
 // secondary indexes. MemoryStore reads the declarations at runtime and
 // `pnpm gen:tables` turns them into the SpacetimeDB schema, so keep them data.
+// A table is private (server-only) unless it declares `public: true`; only
+// public tables can be subscribed to by clients.
 //
 // A system declares its tables in its own folder and registers them:
 //
@@ -10,6 +12,7 @@
 //     row: z.object({ id: z.string(), x: z.number(), y: z.number(), sector: z.string() }),
 //     pk: 'id',
 //     indexes: [{ name: 'by_sector', columns: ['sector'] }],
+//     public: true,
 //   })
 //   registerTables(entityPos)
 //   declare module '../store/tables.ts' {
@@ -46,6 +49,8 @@ export interface TableDef<
   readonly row: S
   readonly pk: P
   readonly indexes: I
+  /** Clients may subscribe to the table. Private (server-only) unless declared `true`. */
+  readonly public: boolean
 }
 
 const NAME = /^[a-z][a-z0-9_]*$/
@@ -59,7 +64,7 @@ export function defineTable<
   S extends RowSchema,
   const P extends PkColumnOf<S>,
   const I extends readonly IndexDecl<ColumnOf<S>>[] = readonly [],
->(def: { name: N; row: S; pk: P; indexes?: I }): TableDef<N, S, P, I> {
+>(def: { name: N; row: S; pk: P; indexes?: I; public?: boolean }): TableDef<N, S, P, I> {
   const indexes = (def.indexes ?? []) as I
   const columns = new Set(Object.keys(def.row.shape))
   const fail = (why: string): never => {
@@ -76,7 +81,7 @@ export function defineTable<
       if (!columns.has(column)) fail(`index "${index.name}" names unknown column "${column}"`)
     }
   }
-  return { name: def.name, row: def.row, pk: def.pk, indexes }
+  return { name: def.name, row: def.row, pk: def.pk, indexes, public: def.public ?? false }
 }
 
 /**
