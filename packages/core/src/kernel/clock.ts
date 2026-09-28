@@ -10,6 +10,9 @@
 import { z } from 'zod'
 import type { Store } from '../store/types.ts'
 import { defineTable, registerTables } from '../store/tables.ts'
+// The clock's rate lives in the `net` tuning section; every host that ticks
+// loads this module, so this import registers `net` for all of them.
+import './net.ts'
 
 /** The singleton row's primary key. */
 const CLOCK_ID = 'world'

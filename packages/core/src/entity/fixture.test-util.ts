@@ -14,6 +14,7 @@ import './commands.ts'
 export const TUNING = {
   movement: { speed: 4, accel: 32, maxStepMs: 100 },
   world: { chunkSize: 32, sectorSize: 32 },
+  net: { tickHz: 10, reconnectQueueSeconds: 30, reconnectQueueMax: 300 },
 }
 
 export const game = createGame({ tuning: TUNING })
