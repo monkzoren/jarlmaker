@@ -145,5 +145,20 @@ generates a new key, and every token issued before that stops working:
 `pnpm server:publish` alone does not invalidate tokens: it wipes the
 database's rows, not the server's key.
 
+**Publish says `not authorized to perform action on database … reset database`.**
+This happens once if your `bastion_bastion-stdb` volume was created before the
+signing key moved into it (P0-044). The key changed on upgrade, so the
+`bastion` database belongs to an identity nobody can sign as any more, and
+`pnpm server:cli logout` alone does not fix it. Recreate the volume. This
+wipes local game data, which a publish wipes anyway:
+
+```sh
+pnpm server:down
+docker volume rm bastion_bastion-stdb
+pnpm server:up
+pnpm server:cli logout
+pnpm server:publish
+```
+
 **The pip says `dropped: WebSocket error` with a 404.** The server is up but
 the `bastion` database is not published. Run `pnpm server:publish`.
