@@ -6,7 +6,7 @@
  * subscription applies, the snapshot is reconciled against the server's rows
  * (rows deleted during a dropout go away; nothing is reloaded). The
  * reconnector (reconnect.ts) owns the link: it opens a new one after a drop,
- * replays queued moves, and sends `join`.
+ * replays queued commands, and sends `join`.
  *
  * `world_clock` is mirrored one microtask late, on purpose. The SDK applies a
  * whole websocket frame (possibly several server messages) synchronously and
@@ -32,20 +32,23 @@ export interface NetDeps {
   readonly snapshot: SnapshotStore
   readonly nonces: NonceSource
   readonly storage: TokenStorage | undefined
-  /** `tuning.net`: how long and how many moves to queue during a dropout. */
+  /** `tuning.net`: how long and how many commands to queue during a dropout. */
   readonly queue: { readonly seconds: number; readonly max: number }
   /** `tuning.net`: reconnect backoff, silence and connect timeouts. */
   readonly timing: Pick<ReconnectKnobs, 'backoffMinMs' | 'backoffMaxMs' | 'silenceMs' | 'connectTimeoutMs'>
   readonly onState: (s: ConnState) => void
   /** Called each time the `join` reducer commits (first connect and every reconnect). */
   readonly onJoined?: (identity: string) => void
-  /** The dropout outlived the queue; `dropped` moves were discarded. */
+  /** The dropout outlived the queue; `dropped` commands were discarded. */
   readonly onQueueDropped?: (dropped: number) => void
   readonly timers?: Timers
 }
 
 export interface Net {
-  /** Send `entity.move`, queued across dropouts; resolves when the server commits it, rejects when it refuses. */
+  /**
+   * Send `entity.move` while online; resolves when the server commits it, rejects
+   * when it refuses. Never queued: refused with `MoveOffline` while dropped (ADR 0008).
+   */
   move(nonce: number, ix: number, iy: number): Promise<void>
   disconnect(): void
 }

@@ -7,15 +7,22 @@
  *                             ^            |
  *                             +------------+  (attempt failed: back off, retry)
  *
- * Every move stays in the outbox from the moment it is issued until the
- * server acks or refuses it, so a move that was in flight when the socket
+ * Movement never queues (ADR 0008). `move` sets a stick *state* the server
+ * integrates over its ticks, so replaying offline stick changes back to back
+ * collapses a walk into a zero-length press. A `move` issued while not online
+ * is refused with `MoveOffline`, and one still in flight when the link drops
+ * is refused too. The play loop sends the current stick once after `join`
+ * instead (play.ts).
+ *
+ * Every other command stays in the outbox from the moment it is issued until
+ * the server acks or refuses it, so one that was in flight when the socket
  * died is replayed too. On reconnect the outbox is replayed oldest-first with
  * the nonces it was first sent with, then `join` is sent with a fresh (higher)
  * nonce. Core refuses a nonce at or below the last one it accepted
- * (`kernel/nonce.ts`), so a move whose ack was lost in the drop comes back as
- * `duplicate` and is not applied twice.
+ * (`kernel/nonce.ts`), so a command whose ack was lost in the drop comes back
+ * as `duplicate` and is not applied twice.
  *
- * While not online, moves queue. The queue holds at most `queueMax` moves
+ * While not online, commands queue. The queue holds at most `queueMax`
  * (the oldest is dropped first) and lives at most `queueMs`: past that the
  * whole queue is refused and `onExpired` fires (the toast).
  */
@@ -38,7 +45,7 @@ export interface LinkHandlers {
 }
 
 /** Opens a new link. Called once per connection attempt. */
-export type Transport = (handlers: LinkHandlers) => Link
+export type Transport<L extends Link = Link> = (handlers: LinkHandlers) => L
 
 export interface Timers {
   set(fn: () => void, ms: number): unknown
@@ -58,29 +65,39 @@ export type Phase = 'connecting' | 'online' | 'dropped' | 'reconnecting' | 'clos
 
 export interface PhaseInfo {
   readonly phase: Phase
-  /** Moves waiting for the server (queued, or in flight when it dropped). */
+  /** Commands waiting for the server (queued, or in flight when it dropped). Never moves. */
   readonly queued: number
   /** Reconnect attempts since the drop (0 while online). */
   readonly attempt: number
   readonly reason?: string | undefined
 }
 
-export interface ReconnectDeps {
-  readonly transport: Transport
+export interface ReconnectDeps<L extends Link = Link> {
+  readonly transport: Transport<L>
   readonly nonces: NonceSource
   readonly knobs: ReconnectKnobs
   readonly timers: Timers
   readonly onPhase: (info: PhaseInfo) => void
-  /** `join` committed: moves are accepted. Fires after every (re)connect. */
+  /** `join` committed: commands are accepted. Fires after every (re)connect. */
   readonly onJoined: (identity: string) => void
-  /** The queue outlived `queueMs`; `dropped` moves were refused locally. */
+  /** The queue outlived `queueMs`; `dropped` commands were refused locally. */
   readonly onExpired: (dropped: number) => void
   readonly onError: (reason: string) => void
 }
 
-export interface Reconnector {
-  /** Resolves when the server commits the move, rejects when it (or the queue) refuses it. */
+export interface Reconnector<L extends Link = Link> {
+  /**
+   * Sent only while online; resolves when the server commits the move, rejects
+   * when it refuses it. Refused with `MoveOffline` while not online or when the
+   * link drops before the ack (ADR 0008).
+   */
   move(nonce: number, ix: number, iy: number): Promise<void>
+  /**
+   * Any other command: `call` sends it on a link. Queued across dropouts and
+   * replayed on reconnect; resolves when the server commits it, rejects when it
+   * (or the queue) refuses it.
+   */
+  command(call: (link: L) => Promise<void>): Promise<void>
   readonly phase: Phase
   readonly queued: number
   /**
@@ -91,13 +108,14 @@ export interface Reconnector {
   close(): void
 }
 
-/** Why a queued move was refused without reaching the server. */
+/** Why a queued command was refused without reaching the server. */
 export class QueueDropped extends Error {}
 
-interface Entry {
-  readonly nonce: number
-  readonly ix: number
-  readonly iy: number
+/** Why a move was discarded: the link was down, or went down before the ack. */
+export class MoveOffline extends Error {}
+
+interface Entry<L> {
+  readonly call: (link: L) => Promise<void>
   readonly resolve: () => void
   readonly reject: (e: unknown) => void
 }
@@ -107,11 +125,13 @@ export function backoffMs(knobs: Pick<ReconnectKnobs, 'backoffMinMs' | 'backoffM
   return Math.min(knobs.backoffMinMs * 2 ** attempt, knobs.backoffMaxMs)
 }
 
-export function createReconnector(deps: ReconnectDeps): Reconnector {
+export function createReconnector<L extends Link>(deps: ReconnectDeps<L>): Reconnector<L> {
   const { transport, nonces, knobs, timers, onPhase, onJoined, onExpired, onError } = deps
-  const outbox: Entry[] = []
+  const outbox: Entry<L>[] = []
+  /** Moves sent on the current link and not yet answered. */
+  const inflight = new Set<(e: unknown) => void>()
   let phase: Phase = 'connecting'
-  let link: Link | undefined
+  let link: L | undefined
   /** Bumped whenever a link is abandoned, so its late callbacks are ignored. */
   let gen = 0
   let attempt = 0
@@ -128,18 +148,18 @@ export function createReconnector(deps: ReconnectDeps): Reconnector {
     if (h !== undefined) timers.clear(h)
     return undefined
   }
-  const remove = (e: Entry): boolean => {
+  const remove = (e: Entry<L>): boolean => {
     const i = outbox.indexOf(e)
     if (i < 0) return false
     outbox.splice(i, 1)
     return true
   }
 
-  function send(e: Entry): void {
+  function send(e: Entry<L>): void {
     const l = link
     if (l === undefined) return
     const my = gen
-    l.move(e.nonce, e.ix, e.iy).then(
+    e.call(l).then(
       () => {
         if (my === gen && remove(e)) e.resolve()
       },
@@ -212,6 +232,7 @@ export function createReconnector(deps: ReconnectDeps): Reconnector {
     silence = clearTimer(silence)
     link?.close()
     link = undefined
+    refuseInflight('the link dropped before the move was acked')
     const wait = backoffMs(knobs, attempt)
     attempt++
     setPhase('dropped', reason)
@@ -219,12 +240,37 @@ export function createReconnector(deps: ReconnectDeps): Reconnector {
     retry = timers.set(open, wait)
   }
 
+  function refuseInflight(why: string): void {
+    const rejects = [...inflight]
+    inflight.clear()
+    for (const reject of rejects) reject(new MoveOffline(why))
+  }
+
   open()
 
   return {
     move(nonce, ix, iy) {
       return new Promise<void>((resolve, reject) => {
-        const e: Entry = { nonce, ix, iy, resolve, reject }
+        const l = link
+        if (phase !== 'online' || l === undefined) {
+          reject(new MoveOffline(`not online (${phase})`))
+          return
+        }
+        const my = gen
+        inflight.add(reject)
+        l.move(nonce, ix, iy).then(
+          () => {
+            if (my === gen && inflight.delete(reject)) resolve()
+          },
+          (err: unknown) => {
+            if (my === gen && inflight.delete(reject)) reject(err)
+          },
+        )
+      })
+    },
+    command(call) {
+      return new Promise<void>((resolve, reject) => {
+        const e: Entry<L> = { call, resolve, reject }
         if (phase === 'closed') {
           reject(new QueueDropped('connection closed'))
           return
@@ -258,6 +304,7 @@ export function createReconnector(deps: ReconnectDeps): Reconnector {
       silence = clearTimer(silence)
       link?.close()
       link = undefined
+      refuseInflight('connection closed')
       for (const e of outbox.splice(0)) e.reject(new QueueDropped('connection closed'))
       setPhase('closed')
     },

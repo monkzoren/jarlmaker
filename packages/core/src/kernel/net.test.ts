@@ -11,6 +11,7 @@ const NET = {
   reconnectBackoffMaxMs: 5000,
   reconnectSilenceMs: 3000,
   reconnectConnectTimeoutMs: 8000,
+  offlineMoveGraceMs: 500,
 }
 
 describe('net tuning', () => {
@@ -43,6 +44,14 @@ describe('net tuning', () => {
       }
     },
   )
+
+  it('keeps the offline movement grace, allowing 0 (freeze at once) and nothing negative, fractional, or missing', () => {
+    expect(createGame({ tuning: { net: NET } }).content.tuning.net.offlineMoveGraceMs).toBe(500)
+    expect(createGame({ tuning: { net: { ...NET, offlineMoveGraceMs: 0 } } }).content.tuning.net.offlineMoveGraceMs).toBe(0)
+    for (const bad of [-1, 2.5, undefined]) {
+      expect(() => createGame({ tuning: { net: { ...NET, offlineMoveGraceMs: bad } } })).toThrow(ContentError)
+    }
+  })
 
   it('rejects a backoff ceiling below its floor', () => {
     expect(() =>

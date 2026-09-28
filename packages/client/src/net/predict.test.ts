@@ -6,6 +6,7 @@ import {
   FLAT_WORLD,
   MS_PER_SECOND,
   playerOf,
+  step,
   stepKnobs,
   tick,
   type Motion,
@@ -143,5 +144,21 @@ describe('prediction against a fake server running core', () => {
     expect(predictor.pending).toBe(1)
     predictor.refused(5)
     expect(predictor.pending).toBe(0)
+  })
+
+  it('resync forgets the old server timing, so the first move after a frozen dropout predicts at once (ADR 0008)', () => {
+    const knobs = stepKnobs(game)
+    const predictor = createPredictor({ knobs, dtMs, world: FLAT_WORLD, maxTicks: 300 })
+    const rest = { x: 3, y: 4, vx: 0, vy: 0, facing: 0, sector: '0,0' }
+    predictor.sent(1, { ix: 0, iy: 0 })
+    predictor.acked(1, 0)
+    for (let t = 0; t < 5; t++) predictor.advance({ tick: t, motion: rest })
+    // Frozen while the server ran 40 more ticks; then the reconnect.
+    predictor.resync()
+    const up = { ix: 0, iy: -1 }
+    predictor.sent(2, up)
+    const p = predictor.advance({ tick: 45, motion: rest })
+    expect(p?.motion).toEqual(step(rest, up, dtMs, FLAT_WORLD, knobs))
+    expect(predictor.pending).toBe(1)
   })
 })

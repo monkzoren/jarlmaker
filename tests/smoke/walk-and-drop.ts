@@ -1,11 +1,12 @@
 // Smoke scenario `walk-and-drop` (P0-018, the Phase 0 promise): connect and
 // join, walk, lose the network for 10 s mid-walk, turn while offline, come
-// back, and the turn lands on the server. The harness then diffs the server's
-// tables against MemoryStore for the same commands.
+// back, and the turn lands on the server: the stick held at reconnect is sent
+// once (ADR 0008; offline stick changes are not queued). The harness then
+// diffs the server's tables against MemoryStore for the same commands.
 //
 // The socket is cut with Playwright's offline mode (CDP network emulation).
 // Chromium keeps the WebSocket open while offline; the client notices by its
-// silence timer (no `world_clock` update for 3 s) and queues moves.
+// silence timer (no `world_clock` update for 3 s) and stops sending moves.
 
 import { expect, type Scenario } from '../../tools/smoke/src/scenario.ts'
 
@@ -47,7 +48,6 @@ const scenario: Scenario = {
     log(`client noticed after ${Date.now() - cutAt} ms: ${await state.textContent()}`)
     await page.keyboard.up('ArrowRight')
     await page.keyboard.down('ArrowDown')
-    await state.filter({ hasText: /[1-9]\d* queued/ }).waitFor({ timeout: UI_TIMEOUT_MS })
     log(`turned down while offline: ${await state.textContent()}`)
     await page.waitForTimeout(Math.max(0, OFFLINE_MS - (Date.now() - cutAt)))
     expect(recording.commands.length === beforeCut, `no command reached the server while offline (saw ${recording.commands.length - beforeCut})`)
@@ -58,7 +58,7 @@ const scenario: Scenario = {
     const backAt = Date.now()
     await joined()
     log(`back online after ${Date.now() - backAt} ms`)
-    await until('the queued turn landed', () => input(id)?.['ix'] === 0 && input(id)?.['iy'] === 1)
+    await until('the held turn landed', () => input(id)?.['ix'] === 0 && input(id)?.['iy'] === 1)
     const yAtTurn = pos(id)?.['y'] as number
     await ticks(WALK_TICKS)
     expect((pos(id)?.['y'] as number) > yAtTurn, 'the player walks down after the replayed turn')

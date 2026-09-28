@@ -5,6 +5,7 @@ import { createNonceSource } from './nonce.ts'
 import {
   backoffMs,
   createReconnector,
+  MoveOffline,
   QueueDropped,
   type Link,
   type LinkHandlers,
@@ -92,6 +93,10 @@ function fakeServer() {
     join(nonce: number): Promise<void> {
       return this.call('join', nonce)
     }
+    /** Any non-movement command (build, craft, …); `tag` tells them apart. */
+    use(nonce: number, tag?: number): Promise<void> {
+      return this.call('use', nonce, tag)
+    }
     close(): void {
       this.open = false
     }
@@ -112,7 +117,7 @@ function fakeServer() {
   return {
     applied,
     links,
-    transport: (h: LinkHandlers): Link => {
+    transport: (h: LinkHandlers): FakeLink => {
       const l = new FakeLink(h)
       links.push(l)
       return l
@@ -263,7 +268,8 @@ describe('connection state machine', () => {
     const s = setup()
     await online(s)
     s.server.latest().kill()
-    const p = s.r.move(s.nonce(), 1, 0)
+    const n = s.nonce()
+    const p = s.r.command((l) => l.use(n))
     s.r.close()
     await expect(p).rejects.toBeInstanceOf(QueueDropped)
     s.timers.advance(60_000)
@@ -272,16 +278,56 @@ describe('connection state machine', () => {
   })
 })
 
-describe('command queue', () => {
-  it('sends directly while online and resolves on the ack', async () => {
+describe('movement (ADR 0008)', () => {
+  it('sends a move directly while online and resolves on the ack', async () => {
     const s = setup()
     await online(s)
     const n = s.nonce()
     const p = s.r.move(n, 1, 0)
     await s.server.latest().flush()
     await expect(p).resolves.toBeUndefined()
-    expect(s.r.queued).toBe(0)
     expect(s.server.applied.at(-1)).toEqual({ kind: 'move', nonce: n, ix: 1 })
+  })
+
+  it('refuses a move while not online and never queues or replays it', async () => {
+    const s = setup()
+    await expect(s.r.move(s.nonce(), 1, 0)).rejects.toBeInstanceOf(MoveOffline) // still connecting
+    await online(s)
+    s.server.latest().kill()
+    const press = s.r.move(s.nonce(), 0, 1)
+    const release = s.r.move(s.nonce(), 0, 0)
+    await expect(press).rejects.toBeInstanceOf(MoveOffline)
+    await expect(release).rejects.toBeInstanceOf(MoveOffline)
+    expect(s.r.queued).toBe(0)
+    s.timers.advance(wait(0))
+    await online(s)
+    expect(s.server.applied.map((a) => a.kind)).toEqual(['join', 'join'])
+  })
+
+  it('refuses a move still in flight when the link drops, and does not replay it', async () => {
+    const s = setup()
+    await online(s)
+    const n = s.nonce()
+    const p = s.r.move(n, 1, 0)
+    s.server.latest().kill() // the ack dies with the socket
+    await expect(p).rejects.toBeInstanceOf(MoveOffline)
+    s.timers.advance(wait(0))
+    await online(s)
+    expect(s.server.applied.filter((a) => a.nonce === n)).toHaveLength(1)
+    expect(s.server.applied.at(-1)?.kind).toBe('join')
+  })
+})
+
+describe('command queue (every command but movement)', () => {
+  it('sends directly while online and resolves on the ack', async () => {
+    const s = setup()
+    await online(s)
+    const n = s.nonce()
+    const p = s.r.command((l) => l.use(n, 1))
+    await s.server.latest().flush()
+    await expect(p).resolves.toBeUndefined()
+    expect(s.r.queued).toBe(0)
+    expect(s.server.applied.at(-1)).toEqual({ kind: 'use', nonce: n, ix: 1 })
   })
 
   it('queues during a dropout and replays oldest-first before join', async () => {
@@ -289,22 +335,22 @@ describe('command queue', () => {
     await online(s)
     s.server.latest().kill()
     const nonces = [s.nonce(), s.nonce(), s.nonce()]
-    const ps = nonces.map((n, i) => s.r.move(n, i, 0))
+    const ps = nonces.map((n) => s.r.command((l) => l.use(n)))
     expect(s.r.queued).toBe(3)
     s.timers.advance(wait(0))
     await online(s)
     await Promise.all(ps)
     const after = s.server.applied.slice(-4)
-    expect(after.map((a) => a.kind)).toEqual(['move', 'move', 'move', 'join'])
+    expect(after.map((a) => a.kind)).toEqual(['use', 'use', 'use', 'join'])
     expect(after.slice(0, 3).map((a) => a.nonce)).toEqual(nonces)
     expect(s.r.queued).toBe(0)
   })
 
-  it('replays a move whose ack was lost, and server dedupe keeps it from applying twice', async () => {
+  it('replays a command whose ack was lost, and server dedupe keeps it from applying twice', async () => {
     const s = setup()
     await online(s)
     const n = s.nonce()
-    const p = s.r.move(n, 1, 0) // committed on the server...
+    const p = s.r.command((l) => l.use(n)) // committed on the server...
     s.server.latest().kill() // ...but the ack dies with the socket
     expect(s.r.queued).toBe(1)
     s.timers.advance(wait(0))
@@ -315,24 +361,28 @@ describe('command queue', () => {
     expect(s.r.queued).toBe(0)
   })
 
-  it('holds at most queueMax moves, dropping the oldest', async () => {
+  it('holds at most queueMax commands, dropping the oldest', async () => {
     const s = setup({ ...KNOBS, queueMax: 2 })
     await online(s)
     s.server.latest().kill()
-    const ps = [1, 2, 3].map((ix) => s.r.move(s.nonce(), ix, 0))
+    const ps = [1, 2, 3].map((tag) => {
+      const n = s.nonce()
+      return s.r.command((l) => l.use(n, tag))
+    })
     await expect(ps[0]).rejects.toBeInstanceOf(QueueDropped)
     expect(s.r.queued).toBe(2)
     s.timers.advance(wait(0))
     await online(s)
     await Promise.all(ps.slice(1))
-    expect(s.server.applied.filter((a) => a.kind === 'move').map((a) => a.ix)).toEqual([2, 3])
+    expect(s.server.applied.filter((a) => a.kind === 'use').map((a) => a.ix)).toEqual([2, 3])
   })
 
   it('drops the whole queue with one expiry past the window, and keeps reconnecting', async () => {
     const s = setup()
     await online(s)
     s.server.latest().kill()
-    const ps = [s.r.move(s.nonce(), 1, 0), s.r.move(s.nonce(), 0, 1)]
+    const [a, b] = [s.nonce(), s.nonce()]
+    const ps = [s.r.command((l) => l.use(a)), s.r.command((l) => l.use(b))]
     s.timers.advance(KNOBS.queueMs - 1)
     expect(s.expired).toEqual([])
     s.timers.advance(1)
@@ -346,14 +396,15 @@ describe('command queue', () => {
     expect(s.server.links.length).toBeGreaterThan(links)
     await online(s)
     expect(s.r.phase).toBe('online')
-    expect(s.server.applied.filter((a) => a.kind === 'move')).toEqual([])
+    expect(s.server.applied.filter((a) => a.kind === 'use')).toEqual([])
   })
 
   it('does not expire when the reconnect lands inside the window', async () => {
     const s = setup()
     await online(s)
     s.server.latest().kill()
-    const p = s.r.move(s.nonce(), 1, 0)
+    const n = s.nonce()
+    const p = s.r.command((l) => l.use(n))
     s.timers.advance(10_000) // a 10 s tunnel
     s.server.latest().h.ready('me')
     await s.server.latest().flush()

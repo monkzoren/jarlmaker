@@ -32,6 +32,7 @@ const NET = {
   reconnectBackoffMaxMs: 5000,
   reconnectSilenceMs: 3000,
   reconnectConnectTimeoutMs: 8000,
+  offlineMoveGraceMs: 500,
 }
 const game = createGame({ tuning: { net: NET } })
 const SENDER = 'alice'

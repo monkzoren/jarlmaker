@@ -3,7 +3,8 @@
  * Net (P0-013) mirrors server rows into a snapshot; input (P0-014) feeds the
  * play loop (P0-015), which sends moves, predicts the local player with
  * core's `step`, and hands the renderer one snapshot per frame. Dropouts
- * (P0-016) queue moves and reconnect behind a quiet pip; the page never reloads.
+ * (P0-016) queue commands and reconnect behind a quiet pip; the page never reloads.
+ * Movement freezes while dropped instead of queuing (ADR 0008).
  */
 import { content } from '@bastion/content'
 import { createGame, FLAT_WORLD, MS_PER_SECOND, stepKnobs } from '@bastion/core'
@@ -57,6 +58,7 @@ const connection = connect({
     hud.textContent = statusText(s)
     hud.dataset['state'] = s.kind
     connHud.update(s)
+    if (s.kind === 'dropped') play.dropped()
   },
   onJoined: (identity) => play.joined(identity),
   onQueueDropped: (dropped) => connHud.queueDropped(dropped),
@@ -67,6 +69,7 @@ const play = createPlay({
   snapshot,
   nonces,
   now: () => performance.now(),
+  graceMs: net.offlineMoveGraceMs,
   predictor: createPredictor({
     knobs: stepKnobs(game),
     dtMs,
@@ -80,6 +83,10 @@ const play = createPlay({
     snapCells: net.correctionSnapCells,
   }),
 })
+
+// Read-only probe for the smoke suite (tests/smoke/offline-tap.ts): where the
+// local player was last drawn. Nothing reads it per frame.
+Object.assign(window, { bastionProbe: { drawn: () => play.drawn() } })
 
 createInput(play.sink, { knobs: { tickHz: net.tickHz, deadZone: input.deadZone, stickRadiusPx: input.stickRadiusPx } })
 setInterval(() => play.tick(), dtMs)

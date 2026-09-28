@@ -43,6 +43,11 @@ export interface Predictor {
   acked(nonce: number, serverTick: number): void
   /** The server refused the move `nonce`; it never takes effect there. */
   refused(nonce: number): void
+  /**
+   * Forget what the server's timing was (after a reconnect, ADR 0008): until a
+   * new move is acked, prediction starts over as it does on the first join.
+   */
+  resync(): void
   /** Run one local tick and return the prediction, or undefined before the player has a row. */
   advance(server: ServerMotion | undefined): Prediction | undefined
   /** Sent moves the server has not yet simulated (unacked, or acked but not yet reached by its clock). */
@@ -108,6 +113,11 @@ export function createPredictor(options: PredictorOptions): Predictor {
     },
     refused(nonce) {
       moves = moves.filter((m) => m.nonce !== nonce)
+    },
+    resync() {
+      lead = undefined
+      moves = []
+      history = []
     },
     advance(server) {
       local += 1

@@ -22,6 +22,7 @@ export const TUNING = {
     reconnectBackoffMaxMs: 5000,
     reconnectSilenceMs: 3000,
     reconnectConnectTimeoutMs: 8000,
+    offlineMoveGraceMs: 500,
   },
 }
 
