@@ -2,6 +2,7 @@
 
 - **Status:** accepted (maintainer decision, 2026-09-28)
 - **Amends:** CLAUDE.md 3.6 rule 7
+- **Amended by:** P0-046 (freeze counts from server silence; 300 ms grace)
 
 ## Context
 
@@ -24,11 +25,15 @@ They chose **freeze and snap**.
 
 ## Decision
 
-- Once the client detects a drop, it stops predicting local movement for its
-  own player after a short grace period (`tuning.net`, ~0.5 s). The sprite
+- Once the client has heard no server traffic (any subscribed update,
+  including the per-tick `world_clock`) for `tuning.net.offlineMoveGraceMs`
+  (300 ms), it stops predicting local movement for its own player. It does
+  not wait for the reconnector to declare a drop, which takes about 3 s. The sprite
   holds still and the reconnecting pip shows. Movement input while dropped
   is not queued: stick changes made offline are discarded, and on reconnect
-  the client sends its *current* stick state once.
+  the client sends its *current* stick state once. If traffic resumes on
+  the same link without a drop, the client does the same thing: it resyncs
+  to the server's position and sends the current stick once.
 - Every other command (build, craft, use, …) still queues and replays in
   order under the existing 30 s / cap rules.
 - On reconnect the player continues from the server's position. Nothing
@@ -38,6 +43,13 @@ They chose **freeze and snap**.
 
 - There is no rubber-banding and no teleport-looking catch-up on a shared
   server. This is the genre-standard behaviour.
+- A live link that goes quiet for longer than the grace (three missed ticks
+  at 10 Hz) briefly freezes your own sprite, which then catches up from the
+  server. That is the price of a short grace.
+- Why 300 ms: with a key pressed 200 ms after the cut, and the last tick
+  arriving up to 100 ms before it, a 500 ms grace allowed 0.55–0.95 cells of
+  walking (0.72 measured), over the 0.6-cell smoke bound. 300 ms measured
+  0.32 cells.
 - In a tunnel, walking pauses. Tunnels are short, and the pip tells the
   player why.
 - The smoke suite gains a scenario that presses **and releases** a key while
