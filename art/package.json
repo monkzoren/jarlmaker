@@ -1,0 +1,17 @@
+{
+  "name": "@bastion/art",
+  "private": true,
+  "type": "module",
+  "description": "Agent-drawn pixel art as text sources: palette-indexed grids, diffable (ADR 0007). The atlas packer and the client read these.",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
