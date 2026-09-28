@@ -1,0 +1,16 @@
+{
+  "name": "@bastion/template-check",
+  "private": true,
+  "type": "module",
+  "description": "Every core system folder has the template files and a README whose ## Data tables match its Zod shapes (CLAUDE.md 3.1 pillar 6, 3.10)",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11",
+    "zod": "4.6.5"
+  }
+}
