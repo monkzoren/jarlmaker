@@ -130,17 +130,17 @@ server and `docker-compose.yml` all expect 3000, so free the port rather than
 moving it. If **5173** is taken, Vite quietly picks the next free port: use
 the `Local:` URL it prints.
 
-**Stale auth token.** Tokens are signed by the local server's key, which
-lives in the `bastion_bastion-stdb` Docker volume. If that volume is removed
-(`docker volume rm`, `docker compose down -v`, a Docker reset), every token
-issued before it stops working:
+**Stale auth token.** Tokens are signed by the local server's key. That key
+currently lives inside the container, not in the `bastion_bastion-stdb`
+volume, so it changes whenever the container is recreated (`pnpm
+server:down` then `pnpm server:up`, removing the volume, a Docker reset). Every
+token issued before that stops working (P0-044 moves the key into the volume):
 
 - `pnpm server:publish` fails with `Error: Invalid token: InvalidSignature`
   (`401 Unauthorized`). Run `pnpm server:cli logout`, then publish again.
-- The browser pip shows `dropped: Failed to verify token: Unauthorized`.
-  Delete the tab's token from localStorage (DevTools > Application > Local
-  Storage: the key `bastion.token.bastion` or `bastion.token.bastion.<profile>`)
-  and reload, or just use a new `?profile=` name.
+- The browser needs nothing: the pip briefly shows
+  `dropped: Failed to verify token: Unauthorized`, the client forgets the
+  rejected token, and it reconnects as a new player within a second.
 
 `pnpm server:publish` alone does not invalidate tokens: it wipes the
 database's rows, not the server's key.
