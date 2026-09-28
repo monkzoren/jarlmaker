@@ -1,0 +1,23 @@
+{
+  "name": "@bastion/server",
+  "private": true,
+  "type": "module",
+  "description": "SpacetimeDB module (the only game host, ADR 0001). Thin glue over @bastion/core.",
+  "scripts": {
+    "server:up": "sh scripts/up.sh",
+    "server:down": "docker compose -f ../../docker-compose.yml down",
+    "server:publish": "sh scripts/spacetime.sh publish --server local --module-path . --delete-data=always --yes bastion",
+    "server:bindings": "sh scripts/spacetime.sh generate --lang typescript --module-path . --out-dir ../client/src/net/bindings --yes",
+    "server:cli": "sh scripts/spacetime.sh",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "spacetimedb": "2.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
