@@ -2,12 +2,11 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { content } from '@bastion/content'
-import { createGame, type SystemTick } from '@bastion/core'
+import { createGame, SYSTEM_TICKS, type SystemTick } from '@bastion/core'
 import { describe, expect, it } from 'vitest'
 import { lineDiff } from '../src/diff.ts'
 import { contentHash, formatResult, scriptSchema } from '../src/format.ts'
 import { compare, runScript } from '../src/run.ts'
-import { REPLAY_SYSTEMS } from '../src/systems.ts'
 
 const DIR = fileURLToPath(new URL('../../../tests/replay/', import.meta.url))
 const script = scriptSchema.parse(JSON.parse(readFileSync(`${DIR}walk-square.json`, 'utf8')))
@@ -26,7 +25,7 @@ describe('walk-square', () => {
 
   it('fails with a readable diff when a rule changes', () => {
     // The changed rule: the movement tick integrates twice the elapsed time.
-    const systems: SystemTick[] = REPLAY_SYSTEMS.map((s) =>
+    const systems: SystemTick[] = SYSTEM_TICKS.map((s) =>
       s.system === 'entity' ? { system: 'entity', run: (ctx) => s.run({ ...ctx, dtMs: ctx.dtMs * 2 }) } : s,
     )
     const result = compare(runScript(game, script, { systems }), golden)
