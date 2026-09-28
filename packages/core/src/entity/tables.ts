@@ -3,6 +3,8 @@
 // `entity_pos` (a decision record is required to add a column to either).
 // `entity_input` holds each entity's last move stick and whether it is still
 // moving, so the tick visits only moving entities (by index, never a scan).
+// `entity` and `entity_pos` are public (clients subscribe to them by sector);
+// `entity_input` and `entity_seq` are server-only.
 
 import { z } from 'zod'
 import { defineTable, registerTables } from '../store/tables.ts'
@@ -22,6 +24,7 @@ export const entity = defineTable({
   }),
   pk: 'id',
   indexes: [{ name: 'by_owner', columns: ['owner'] }],
+  public: true,
 })
 
 export const entityPos = defineTable({
@@ -37,6 +40,7 @@ export const entityPos = defineTable({
   }),
   pk: 'id',
   indexes: [{ name: 'by_sector', columns: ['sector'] }],
+  public: true,
 })
 
 export const entityInput = defineTable({

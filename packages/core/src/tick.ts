@@ -13,6 +13,7 @@
 
 import type { Game } from './game.ts'
 import { dispatch } from './dispatch.ts'
+import { entityTick } from './entity/tick.ts'
 import { advanceTick } from './kernel/clock.ts'
 import { StepStore } from './kernel/step-store.ts'
 import { REGISTRY, type DispatchTable } from './registry.ts'
@@ -34,9 +35,9 @@ export interface SystemTick {
 }
 
 export const SYSTEM_TICKS: readonly SystemTick[] = [
-  // No system has per-tick work yet. The first entry is `entity` (P0-008):
-  // movement integrates inputs first, so every later system reads this
+  // Movement integrates inputs first, so every later system reads this
   // tick's positions.
+  entityTick,
 ]
 
 export interface TickOptions {
