@@ -41,6 +41,23 @@ export {
   type Rejection,
 } from './commands.ts'
 export {
+  onEvent,
+  registerCommand,
+  Registry,
+  REGISTRY,
+  type AnyCommandDef,
+  type AnyEventHandler,
+  type CommandContext,
+  type CommandDef,
+  type DispatchTable,
+  type EventContext,
+} from './registry.ts'
+export { execute, type ExecuteOptions } from './execute.ts'
+export { SYSTEM_TICKS, tick, type SystemTick, type TickContext, type TickOptions } from './tick.ts'
+export { dispatch, MAX_EVENTS_PER_STEP } from './dispatch.ts'
+export { commandNonce } from './kernel/nonce.ts'
+export { StepStore } from './kernel/step-store.ts'
+export {
   ContentError,
   createGame,
   loadContent,

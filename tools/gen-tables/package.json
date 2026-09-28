@@ -1,0 +1,24 @@
+{
+  "name": "@bastion/gen-tables",
+  "private": true,
+  "type": "module",
+  "description": "Generates packages/server/src/tables.ts from core's table declarations, append-only (CLAUDE.md 3.4)",
+  "scripts": {
+    "build": "tsx src/cli.ts --check",
+    "gen": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bastion/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@bastion/server": "workspace:*",
+    "@types/node": "22.20.4",
+    "spacetimedb": "2.10.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11",
+    "zod": "4.6.5"
+  }
+}

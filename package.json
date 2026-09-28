@@ -20,7 +20,12 @@
     "tasks:board": "pnpm --filter @bastion/tasks run cli board",
     "tasks:next": "pnpm --filter @bastion/tasks run cli next",
     "tasks:claim": "pnpm --filter @bastion/tasks run cli claim",
-    "tasks:status": "pnpm --filter @bastion/tasks run cli status"
+    "tasks:status": "pnpm --filter @bastion/tasks run cli status",
+    "server:up": "pnpm --filter @bastion/server server:up",
+    "server:down": "pnpm --filter @bastion/server server:down",
+    "server:publish": "pnpm --filter @bastion/server server:publish",
+    "server:bindings": "pnpm --filter @bastion/server server:bindings",
+    "server:cli": "pnpm --filter @bastion/server server:cli"
   },
   "devDependencies": {
     "turbo": "2.11.4",
