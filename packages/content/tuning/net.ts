@@ -24,10 +24,14 @@ export const net = {
   // into a dead network can hang far longer than the backoff. Generous, so a
   // slow phone handshake plus the first subscription fits.
   reconnectConnectTimeoutMs: 8000,
-  // After a drop is detected, the own player keeps predicting this long, then
-  // holds still until reconnect (ADR 0008). Covers a blip without walking the
-  // sprite somewhere the server never saw, so a tunnel never ends in a snap-back.
-  offlineMoveGraceMs: 500,
+  // With no server traffic for this long (or this long after a drop), the own
+  // player stops predicting and holds still until the server is heard again
+  // (ADR 0008, P0-046). It counts from the last traffic, not from drop
+  // detection, so a tunnel walks the sprite at most this long before the
+  // freeze: 300 ms is about 1 cell at full speed, so the snap-back on reconnect
+  // stays small. Three missed `world_clock` ticks, so ordinary jitter on a
+  // live link does not freeze the sprite.
+  offlineMoveGraceMs: 300,
   // Client view (P0-015). Remote entities are drawn this many ticks in the
   // past and interpolated between server updates: two ticks hides one late
   // update without making other players feel laggy.

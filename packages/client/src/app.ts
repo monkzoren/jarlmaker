@@ -4,7 +4,7 @@
  * play loop (P0-015), which sends moves, predicts the local player with
  * core's `step`, and hands the renderer one snapshot per frame. Dropouts
  * (P0-016) queue commands and reconnect behind a quiet pip; the page never reloads.
- * Movement freezes while dropped instead of queuing (ADR 0008).
+ * Movement freezes while dropped, or silent, instead of queuing (ADR 0008).
  */
 import { content } from '@bastion/content'
 import { createGame, FLAT_WORLD, MS_PER_SECOND, stepKnobs } from '@bastion/core'
@@ -61,6 +61,7 @@ const connection = connect({
     if (s.kind === 'dropped') play.dropped()
   },
   onJoined: (identity) => play.joined(identity),
+  onTraffic: () => play.heard(),
   onQueueDropped: (dropped) => connHud.queueDropped(dropped),
 })
 

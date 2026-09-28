@@ -105,7 +105,14 @@ function harness() {
   const nonces = createNonceSource(() => 1000 + applied.length)
   const reconnector = createReconnector<FakeLink>({
     transport: (h) => {
-      const l = new FakeLink(h)
+      // As connection.ts: server traffic reaches the reconnector and the play loop.
+      const l = new FakeLink({
+        ...h,
+        alive: () => {
+          h.alive()
+          play.heard()
+        },
+      })
       links.push(l)
       timers.set(() => connectLink(l), 0)
       return l
@@ -257,14 +264,16 @@ describe('movement while disconnected (ADR 0008)', () => {
     h.stick(1, 0)
     await h.step(10)
     h.cut()
-    await h.step(ticksFor(net.reconnectSilenceMs))
-    // Still predicting through the grace period…
-    const atDrop = h.drawn()
-    await h.step(ticksFor(net.offlineMoveGraceMs) + 1)
-    expect(h.drawn().x).toBeGreaterThan(atDrop.x)
-    // …then frozen for the rest of the dropout.
+    // Still predicting through the grace period after the last server traffic…
+    const atCut = h.drawn()
+    await h.step(ticksFor(net.offlineMoveGraceMs) - 1)
+    expect(h.drawn().x).toBeGreaterThan(atCut.x)
+    await h.step(2)
+    // …then frozen, before the drop is even detected, and for the rest of the dropout.
     const frozen = h.drawn()
-    await h.step(20)
+    expect(h.phase()).toBe('online')
+    await h.step(ticksFor(net.reconnectSilenceMs) + 20)
+    expect(h.phase()).not.toBe('online')
     expect(h.drawn()).toEqual(frozen)
 
     await reconnect(h)
@@ -280,6 +289,66 @@ describe('movement while disconnected (ADR 0008)', () => {
       expect(Math.abs(d.x - h.server().x)).toBeLessThanOrEqual(content.tuning.movement.speed * (dtMs / MS_PER_SECOND) + 1e-9)
       prev = d.x
     }
+  })
+
+  it('freezes after the grace period of server silence, before the drop is detected, so a tunnel tap barely moves the sprite (P0-046)', async () => {
+    const h = harness()
+    await h.step(2)
+    h.stick(1, 0)
+    await h.step(10)
+    h.stick(0, 0)
+    await h.step(10)
+    const atCut = { ...h.server() }
+    const start = h.drawn()
+    let drift = 0
+    const watch = async (ms: number): Promise<void> => {
+      for (let i = 0; i < ticksFor(ms); i++) {
+        await h.step()
+        drift = Math.max(drift, dist(h.drawn(), start))
+      }
+    }
+
+    h.cut()
+    await watch(200)
+    expect(h.phase()).toBe('online') // the drop is seconds away yet
+    h.stick(0, -1)
+    await watch(600)
+    h.stick(0, 0)
+    await watch(5_000 - 800)
+    expect(h.phase()).not.toBe('online')
+    const graceWalk = content.tuning.movement.speed * (net.offlineMoveGraceMs / MS_PER_SECOND)
+    // At most the grace period's worth of walking (the test above shows it does walk through it).
+    expect(drift).toBeLessThanOrEqual(graceWalk)
+
+    await reconnect(h)
+    await h.step(30)
+    expect(h.server()).toEqual(atCut)
+    expect(dist(h.drawn(), h.server())).toBeLessThan(1e-9)
+  })
+
+  it('traffic resuming on the same link unfreezes and sends the current stick once; changes while quiet are not sent', async () => {
+    const h = harness()
+    await h.step(2)
+    h.cut()
+    await h.step(ticksFor(net.offlineMoveGraceMs) + 1)
+    const sentBefore = h.applied.length
+    const frozen = h.drawn()
+    h.stick(1, 0)
+    h.stick(0, 1)
+    await h.step(5)
+    expect(h.drawn()).toEqual(frozen)
+    expect(h.phase()).toBe('online')
+
+    h.restore() // same link: the server was only slow
+    await h.step(3)
+    expect(h.phase()).toBe('online')
+    const after = h.applied.slice(sentBefore)
+    expect(after).toEqual([expect.objectContaining({ kind: 'move', ix: 0, iy: 1 })])
+    expect(h.drawn().y).toBeGreaterThan(frozen.y) // walking again
+    await h.step(30)
+    h.stick(0, 0)
+    await h.step(30)
+    expect(dist(h.drawn(), h.server())).toBeLessThan(1e-9)
   })
 
   it('a non-movement command queued offline still replays, before join and before the current stick', async () => {

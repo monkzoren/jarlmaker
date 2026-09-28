@@ -41,6 +41,8 @@ export interface NetDeps {
   readonly onJoined?: (identity: string) => void
   /** The dropout outlived the queue; `dropped` commands were discarded. */
   readonly onQueueDropped?: (dropped: number) => void
+  /** Any row from the server on the live link, `world_clock` included (the play loop's silence freeze). */
+  readonly onTraffic?: () => void
   readonly timers?: Timers
 }
 
@@ -157,27 +159,45 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
     })
     .build()
 
+  // Every row the live link delivers is server traffic: it holds off the
+  // reconnector's silence drop and the play loop's movement freeze.
+  const traffic = (): void => {
+    h.alive()
+    deps.onTraffic?.()
+  }
   conn.db.entity.onInsert((_ctx, row) => {
-    if (live) snapshot.upsertEntity(row)
+    if (!live) return
+    traffic()
+    snapshot.upsertEntity(row)
   })
   conn.db.entity.onUpdate((_ctx, _old, row) => {
-    if (live) snapshot.upsertEntity(row)
+    if (!live) return
+    traffic()
+    snapshot.upsertEntity(row)
   })
   conn.db.entity.onDelete((_ctx, row) => {
-    if (live) snapshot.deleteEntity(row.id)
+    if (!live) return
+    traffic()
+    snapshot.deleteEntity(row.id)
   })
   conn.db.entityPos.onInsert((_ctx, row) => {
-    if (live) snapshot.upsertPos(row)
+    if (!live) return
+    traffic()
+    snapshot.upsertPos(row)
   })
   conn.db.entityPos.onUpdate((_ctx, _old, row) => {
-    if (live) snapshot.upsertPos(row)
+    if (!live) return
+    traffic()
+    snapshot.upsertPos(row)
   })
   conn.db.entityPos.onDelete((_ctx, row) => {
-    if (live) snapshot.deletePos(row.id)
+    if (!live) return
+    traffic()
+    snapshot.deletePos(row.id)
   })
   const clock = (row: { tick: number }): void => {
     if (!live) return
-    h.alive()
+    traffic()
     queueMicrotask(() => {
       if (live) snapshot.setClock(row.tick)
     })
