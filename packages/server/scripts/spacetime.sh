@@ -4,8 +4,9 @@
 # Resolution order:
 #   1. $SPACETIME_BIN, if set.
 #   2. `spacetime` on PATH, if it reports the pinned version.
-#   3. The CLI binary copied out of the pinned Docker image (Linux hosts),
-#      cached in packages/server/.spacetime/<version>/spacetime.
+#   3. The CLI copied out of the pinned Docker image (Linux hosts), cached in
+#      packages/server/.spacetime/<version>/. `generate` also needs the
+#      `spacetimedb-standalone` binary beside the CLI, so both are copied.
 #
 # The CLI runs on the host because building a TypeScript module shells out
 # to node, which the SpacetimeDB image does not ship.
@@ -32,10 +33,12 @@ if [ ! -x "$cached" ]; then
     exit 1
   fi
   echo "spacetime.sh: extracting CLI $version from $image" >&2
-  mkdir -p "$(dirname "$cached")"
+  dir=$(dirname "$cached")
+  mkdir -p "$dir"
   cid=$(docker create "$image")
-  docker cp "$cid:/opt/spacetime/spacetimedb-cli" "$cached" >/dev/null
+  docker cp "$cid:/opt/spacetime/spacetimedb-standalone" "$dir/spacetimedb-standalone" >/dev/null
+  docker cp "$cid:/opt/spacetime/spacetimedb-cli" "$dir/spacetime.tmp" >/dev/null
   docker rm "$cid" >/dev/null
-  chmod +x "$cached"
+  mv "$dir/spacetime.tmp" "$cached"
 fi
 exec "$cached" "$@"
