@@ -14,6 +14,7 @@
 
 import type { Content, Game } from '../game.ts'
 import type { WorldView } from '../entity/world-view.ts'
+import { cellMemo } from './cache.ts'
 import { fbm, SALT, unit, hash3 } from './noise.ts'
 import './schema.ts'
 import type { BiomeDef, BiomeRole, PropDef } from './schema.ts'
@@ -129,7 +130,7 @@ export function createTerrain(content: WorldContent): Terrain {
   return {
     cell,
     elevation,
-    walkable: (cx, cy) => cell(cx, cy).walkable,
+    walkable: cellMemo((cx, cy) => cell(cx, cy).walkable),
   }
 }
 

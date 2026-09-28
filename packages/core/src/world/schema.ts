@@ -50,7 +50,7 @@ registerTuning('world', worldTuning)
 export const BIOME_ROLES = ['water', 'shore', 'lowland', 'upland'] as const
 export type BiomeRole = (typeof BIOME_ROLES)[number]
 
-const chance = z.object({
+export const chanceDef = z.object({
   /** Id of a prop (`props`) or a decal (an art id). */
   id: z.string().min(1),
   /** Share of this biome's cells that get it, in [0, 1]. */
@@ -71,9 +71,9 @@ export const biomeDef = z
     /** Drawing order at biome borders: the higher biome's edge overlaps the lower. */
     layer: z.int().nonnegative(),
     /** Props that grow here, rolled per cell (shares add up to at most 1). */
-    flora: z.array(chance),
+    flora: z.array(chanceDef),
     /** Flat ground details drawn into the tile, rolled per cell. */
-    decals: z.array(chance),
+    decals: z.array(chanceDef),
   })
   .refine((b) => (b.role === 'lowland') === (b.moisture !== undefined), {
     message: 'lowland biomes need a moisture band; other roles must not have one',
