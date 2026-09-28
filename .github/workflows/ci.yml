@@ -1,0 +1,105 @@
+# Merge gate for every PR (CLAUDE.md Section 3.8) and board regeneration on
+# main (ADR 0003). Mark the `checks` and `smoke` jobs as required status
+# checks in the branch protection rule for `main`.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # tasks:validate reads task files on origin/main and remote branches.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4 # version from package.json `packageManager`
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm contentlint
+      - run: pnpm balance
+      - run: pnpm replay
+      - run: pnpm worldgold
+      - run: pnpm tasks:validate
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Docker is available
+        run: docker version
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm smoke
+
+  board:
+    # Only this job commits docs/BOARD.md and docs/STATUS.md, so parallel
+    # PRs never conflict on them (ADR 0003).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [checks, smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: board-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tasks:status reads the full git log
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tasks:board && pnpm tasks:status
+      - name: Commit the board when it changed
+        id: commit
+        run: |
+          if git diff --quiet -- docs/BOARD.md docs/STATUS.md; then
+            echo "board and status unchanged; nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/BOARD.md docs/STATUS.md
+          git commit -m "chore(tasks): regenerate board [skip ci]"
+          if git pull --rebase --quiet origin main && git push origin HEAD:main; then
+            echo "board committed to main"
+          else
+            echo "::warning::Could not push the regenerated board to main (branch protection or a race). Uploading it as the 'board' artifact instead."
+            echo "push_failed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload the board when the push was refused
+        if: steps.commit.outputs.push_failed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: board
+          path: |
+            docs/BOARD.md
+            docs/STATUS.md
