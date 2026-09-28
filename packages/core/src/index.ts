@@ -55,6 +55,7 @@ export {
 export { execute, type ExecuteOptions } from './execute.ts'
 export { SYSTEM_TICKS, tick, type SystemTick, type TickContext, type TickOptions } from './tick.ts'
 export { dispatch, MAX_EVENTS_PER_STEP } from './dispatch.ts'
+export { currentTick, worldClock } from './kernel/clock.ts'
 export { commandNonce } from './kernel/nonce.ts'
 export { StepStore } from './kernel/step-store.ts'
 export {
