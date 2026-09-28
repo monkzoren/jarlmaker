@@ -2,9 +2,29 @@
 // (CLAUDE.md 3.4) — DO NOT EDIT. Regenerate: pnpm --filter @bastion/gen-tables gen
 // `pnpm build` and `pnpm test` fail when this file drifts from the declarations.
 
-// No tables are declared yet.
-export const tables = {} as const
+import { table, t } from 'spacetimedb/server'
+
+export const tables = {
+  command_nonce: table(
+    {
+      name: 'command_nonce',
+      public: true,
+    },
+    {
+      sender: t.string().primaryKey(),
+      nonce: t.f64(),
+    },
+  ),
+} as const
 
 /* gen-tables manifest: the append-only baseline for the next run. Do not edit.
-{}
+{
+  "command_nonce": {
+    "pk": "sender",
+    "columns": [
+      {"name":"sender","type":"string"},
+      {"name":"nonce","type":"f64"}
+    ]
+  }
+}
 */
