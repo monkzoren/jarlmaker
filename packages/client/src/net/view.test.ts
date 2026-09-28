@@ -51,6 +51,15 @@ describe('view: remote entities', () => {
     expect(v.frame(400).entities).toEqual([{ id: '2', x: px(1), y: 0 }])
   })
 
+  it('holds a remote still at its last server sample while no updates arrive (a dropout, ADR 0008)', () => {
+    const v = createView(KNOBS)
+    v.server([{ id: 2n, ...at(0) }], undefined, 0)
+    v.server([{ id: 2n, ...at(1) }], undefined, 100)
+    const held = v.frame(300).entities
+    for (const t of [1_000, 5_000, 30_000]) expect(v.frame(t).entities).toEqual(held)
+    expect(held).toEqual([{ id: '2', x: px(1), y: 0 }])
+  })
+
   it('never samples the local player as a remote, and forgets entities that left', () => {
     const v = createView(KNOBS)
     v.server([{ id: 1n, ...at(0) }, { id: 2n, ...at(0) }], '1', 0)
@@ -78,6 +87,7 @@ describe('play: the command sink', () => {
       sent: (n, s) => void log.push(`sent ${n} ${s.ix},${s.iy}`),
       acked: (n, t) => void log.push(`acked ${n}@${t}`),
       refused: (n) => void log.push(`refused ${n}`),
+      resync: () => void log.push('resync'),
       advance: () => undefined,
       pending: 0,
       tick: 0,
@@ -99,6 +109,7 @@ describe('play: the command sink', () => {
       view: createView(KNOBS),
       nonces: createNonceSource(() => clock.shift() ?? 0),
       now: () => 0,
+      graceMs: 0,
     })
     const cmd = (ix: number, iy: number) => ({ kind: 'entity.move' as const, ix, iy })
     play.sink.send({ nonce: 9, cmd: cmd(1, 0) })
@@ -110,6 +121,6 @@ describe('play: the command sink', () => {
     await Promise.resolve()
     await Promise.resolve()
     expect(calls).toEqual(['move 100 0,1', 'move 101 -1,0'])
-    expect(log).toEqual(['sent 100 0,1', 'sent 101 -1,0', 'acked 100@7', 'refused 101'])
+    expect(log).toEqual(['resync', 'sent 100 0,1', 'sent 101 -1,0', 'acked 100@7', 'refused 101'])
   })
 })

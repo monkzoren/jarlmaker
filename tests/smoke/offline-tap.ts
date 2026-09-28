@@ -29,7 +29,7 @@ const scenario: Scenario = {
     const joined = () => state.and(page.locator('[data-state="joined"]')).waitFor({ timeout: UI_TIMEOUT_MS })
     const drawn = async (): Promise<Point> => {
       const p = await page.evaluate(
-        () => (window as unknown as { bastionProbe?: { drawn(): Point | undefined } }).bastionProbe?.drawn(),
+        () => (globalThis as unknown as { bastionProbe?: { drawn(): Point | undefined } }).bastionProbe?.drawn(),
       )
       expect(p !== undefined && p !== null, 'the page draws the local player')
       return p

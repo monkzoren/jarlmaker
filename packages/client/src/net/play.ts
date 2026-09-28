@@ -4,6 +4,12 @@
  * connection's one nonce source (so `join` and `move` share one strictly
  * increasing counter), sent as the `move` reducer, and kept in the
  * predictor's pending buffer until the server has simulated it.
+ *
+ * Movement freezes while disconnected (ADR 0008). Stick changes made while
+ * dropped are not sent, only remembered; `graceMs` after the drop the own
+ * player stops predicting and holds still. On `joined` the predictor resyncs
+ * to the server and the current stick is sent once, so the walk continues
+ * from the server's position and nothing snaps back.
  */
 import type { CommandSink } from '../input/index.ts'
 import type { RenderSnapshot } from '../render/index.ts'
@@ -20,13 +26,17 @@ export interface PlayDeps {
   readonly view: View
   readonly nonces: NonceSource
   readonly now: () => number
+  /** `tuning.net.offlineMoveGraceMs`: how long the own player still predicts after a drop. */
+  readonly graceMs: number
 }
 
 export interface Play {
   /** Give this to `createInput`. */
   readonly sink: CommandSink
-  /** The server accepted `join` for `identity`: moves may flow. */
+  /** The server accepted `join` for `identity`: moves may flow. Fires after every (re)connect. */
   joined(identity: string): void
+  /** The connection dropped: stop sending moves, and freeze after the grace period. */
+  dropped(): void
   /** One prediction tick; call every `dtMs`. */
   tick(): void
   /** What to draw now. */
@@ -41,9 +51,12 @@ interface Stick {
 }
 
 export function createPlay(deps: PlayDeps): Play {
-  const { move, snapshot, predictor, view, nonces, now } = deps
+  const { move, snapshot, predictor, view, nonces, now, graceMs } = deps
   let identity: string | undefined
-  let held: Stick | undefined
+  /** The latest stick from input, sent or not. */
+  let current: Stick | undefined
+  let online = false
+  let droppedAt: number | undefined
   let sampledClock = -1
   let last: RenderSnapshot | undefined
 
@@ -61,17 +74,24 @@ export function createPlay(deps: PlayDeps): Play {
   return {
     sink: {
       send(envelope) {
-        const stick = { ix: envelope.cmd.ix, iy: envelope.cmd.iy }
-        if (identity === undefined) held = stick
-        else send(stick)
+        current = { ix: envelope.cmd.ix, iy: envelope.cmd.iy }
+        if (online) send(current)
       },
     },
     joined(id) {
       identity = id
-      if (held !== undefined) send(held)
-      held = undefined
+      online = true
+      droppedAt = undefined
+      predictor.resync()
+      if (current !== undefined) send(current)
+    },
+    dropped() {
+      if (!online) return
+      online = false
+      droppedAt = now()
     },
     tick() {
+      if (droppedAt !== undefined && now() - droppedAt >= graceMs) return
       const own = identity === undefined ? undefined : snapshot.playerPos(identity)
       const p = predictor.advance(own === undefined ? undefined : { tick: snapshot.clock, motion: own })
       if (own !== undefined && p !== undefined) view.local(String(own.id), p, now())

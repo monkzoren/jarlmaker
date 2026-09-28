@@ -23,6 +23,8 @@ export const netTuning = z
     reconnectSilenceMs: z.int().positive(),
     /** Ms a connect attempt may take to become ready before it is abandoned and retried. */
     reconnectConnectTimeoutMs: z.int().positive(),
+    /** Ms after a detected drop that the client still predicts its own movement; then it freezes (ADR 0008). */
+    offlineMoveGraceMs: z.int().nonnegative(),
   })
   .refine((t) => t.reconnectBackoffMaxMs >= t.reconnectBackoffMinMs, {
     message: 'reconnectBackoffMaxMs must be >= reconnectBackoffMinMs',
