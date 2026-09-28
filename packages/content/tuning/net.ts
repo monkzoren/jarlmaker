@@ -11,6 +11,19 @@ export const net = {
   // Hard cap on queued commands, so a long dropout can't grow the queue without
   // bound. 30 s of input at the tick rate.
   reconnectQueueMax: 300,
+  // Reconnect backoff (P0-016). The first retry comes quickly: most drops are
+  // a tunnel or a network handoff that is already over. Doubling stops at the
+  // ceiling, so a long outage still retries every few seconds and the player
+  // is back within one interval of the network returning.
+  reconnectBackoffMinMs: 500,
+  reconnectBackoffMaxMs: 5000,
+  // The server updates `world_clock` every tick. This long with no traffic
+  // means the socket is dead even if the browser has not closed it.
+  reconnectSilenceMs: 3000,
+  // A connect attempt not ready by now is abandoned and retried: a connect
+  // into a dead network can hang far longer than the backoff. Generous, so a
+  // slow phone handshake plus the first subscription fits.
+  reconnectConnectTimeoutMs: 8000,
   // Client view (P0-015). Remote entities are drawn this many ticks in the
   // past and interpolated between server updates: two ticks hides one late
   // update without making other players feel laggy.

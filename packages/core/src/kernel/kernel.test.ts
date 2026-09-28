@@ -24,7 +24,16 @@ type TestEvent =
 // The contract's GameEvent union is empty until systems add kinds.
 const ev = (e: TestEvent): GameEvent => e as unknown as GameEvent
 
-const game = createGame({ tuning: { net: { tickHz: 10, reconnectQueueSeconds: 30, reconnectQueueMax: 300 } } })
+const NET = {
+  tickHz: 10,
+  reconnectQueueSeconds: 30,
+  reconnectQueueMax: 300,
+  reconnectBackoffMinMs: 500,
+  reconnectBackoffMaxMs: 5000,
+  reconnectSilenceMs: 3000,
+  reconnectConnectTimeoutMs: 8000,
+}
+const game = createGame({ tuning: { net: NET } })
 const SENDER = 'alice'
 
 function setup() {
