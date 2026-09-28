@@ -100,6 +100,11 @@ export interface Reconnector {
   move(nonce: number, ix: number, iy: number): Promise<void>
   readonly phase: Phase
   readonly queued: number
+  /**
+   * The network is probably back (the browser went online, the tab came to the
+   * front): skip the rest of the backoff and retry now.
+   */
+  nudge(): void
   close(): void
 }
 
@@ -256,6 +261,12 @@ export function createReconnector(deps: ReconnectDeps): Reconnector {
     },
     get queued() {
       return outbox.length
+    },
+    nudge() {
+      if (phase !== 'dropped') return
+      retry = clearTimer(retry)
+      attempt = 0
+      open()
     },
     close() {
       gen++

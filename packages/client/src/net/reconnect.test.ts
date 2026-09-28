@@ -180,6 +180,27 @@ describe('connection state machine', () => {
     expect(s.server.links).toHaveLength(4)
   })
 
+  it('nudge skips the backoff while dropped and does nothing otherwise', async () => {
+    const s = setup()
+    await online(s)
+    s.r.nudge()
+    expect(s.server.links).toHaveLength(1)
+    s.server.latest().kill()
+    s.timers.advance(500)
+    s.server.latest().kill()
+    s.timers.advance(1000)
+    s.server.latest().kill() // now waiting 2 s
+    s.r.nudge()
+    expect(s.r.phase).toBe('reconnecting')
+    expect(s.server.links).toHaveLength(4)
+    s.r.nudge() // already reconnecting: no second attempt
+    expect(s.server.links).toHaveLength(4)
+    await online(s)
+    expect(s.r.phase).toBe('online')
+    s.timers.advance(2000) // the cancelled retry never fires
+    expect(s.server.links).toHaveLength(4)
+  })
+
   it('treats a silent socket as dropped', async () => {
     const s = setup()
     await online(s)

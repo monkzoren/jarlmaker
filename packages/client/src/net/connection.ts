@@ -88,9 +88,21 @@ export function connect(deps: NetDeps): Net {
     onError: (reason) => onState({ kind: 'error', reason }),
   })
 
+  // The browser's own hints that the network is back cut a long backoff short.
+  const nudge = (): void => reconnector.nudge()
+  const onVisible = (): void => {
+    if (document.visibilityState === 'visible') nudge()
+  }
+  if (typeof window !== 'undefined') window.addEventListener('online', nudge)
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible)
+
   return {
     move: (nonce, ix, iy) => reconnector.move(nonce, ix, iy),
-    disconnect: () => reconnector.close(),
+    disconnect: () => {
+      if (typeof window !== 'undefined') window.removeEventListener('online', nudge)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible)
+      reconnector.close()
+    },
   }
 }
 
