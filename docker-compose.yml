@@ -1,0 +1,19 @@
+# Local SpacetimeDB for development (ADR 0006). Start it with `pnpm server:up`.
+# The image tag must equal the exact `spacetimedb` version in
+# packages/server/package.json; packages/server/test/pin.test.ts enforces it.
+name: bastion
+
+services:
+  spacetimedb:
+    image: clockworklabs/spacetime:v2.10.1
+    # A fresh named volume is root-owned; the image's default user cannot write it.
+    user: root
+    command: ["start", "--listen-addr", "0.0.0.0:3000", "--data-dir", "/stdb/data", "--non-interactive"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - bastion-stdb:/stdb
+    restart: unless-stopped
+
+volumes:
+  bastion-stdb:
