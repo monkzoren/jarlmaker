@@ -6,10 +6,13 @@ SpacetimeDB `table()` per registered table, same columns, pk and indexes.
 MemoryStore reads the declarations at runtime and needs no generation.
 
 ```sh
-pnpm --filter @bastion/gen-tables gen                   # write the server file
-pnpm --filter @bastion/gen-tables gen --check           # fail if it drifted (run by `pnpm build`)
-pnpm --filter @bastion/gen-tables gen --allow-breaking  # skip the append-only check (needs an ADR)
+pnpm gen:tables                    # write the server file
+pnpm gen:tables --check            # fail if it drifted (run by `pnpm build`)
+pnpm gen:tables --allow-breaking   # skip the append-only check (needs an ADR)
 ```
+
+`pnpm gen:tables` is the root alias for `pnpm --filter @bastion/gen-tables run gen`;
+the long form still works and is what the generated file's header names.
 
 `pnpm test` also fails on drift (`test/drift.test.ts`). The generated file
 exports `tables`, which the module passes to `schema({...tables})`.
