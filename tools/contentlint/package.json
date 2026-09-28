@@ -1,0 +1,22 @@
+{
+  "name": "@bastion/contentlint",
+  "private": true,
+  "type": "module",
+  "description": "Validates @bastion/content through core's schemas and cross-reference checks (CLAUDE.md 3.7)",
+  "scripts": {
+    "cli": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bastion/content": "workspace:*",
+    "@bastion/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11",
+    "zod": "4.6.5"
+  }
+}
