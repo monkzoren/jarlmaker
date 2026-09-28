@@ -1,0 +1,16 @@
+{
+  "seed": 1,
+  "now": 0,
+  "contentHash": "sha256:2115a1521820622a9afb2ce0b54dbf5e0f3d475b3dbedcf0c35203ed17ee95e1",
+  "dtMs": 100,
+  "endTick": 50,
+  "commands": [
+    { "atTick": 0, "sender": "alice", "envelope": { "nonce": 1, "cmd": { "kind": "player.join" } } },
+    { "atTick": 0, "sender": "alice", "envelope": { "nonce": 2, "cmd": { "kind": "entity.move", "ix": -1, "iy": 0 } } },
+    { "atTick": 10, "sender": "alice", "envelope": { "nonce": 3, "cmd": { "kind": "entity.move", "ix": 0, "iy": -1 } } },
+    { "atTick": 20, "sender": "alice", "envelope": { "nonce": 4, "cmd": { "kind": "entity.move", "ix": 1, "iy": 0 } } },
+    { "atTick": 31, "sender": "alice", "envelope": { "nonce": 5, "cmd": { "kind": "entity.move", "ix": 0, "iy": 1 } } },
+    { "atTick": 42, "sender": "alice", "envelope": { "nonce": 6, "cmd": { "kind": "entity.move", "ix": 0, "iy": 0 } } },
+    { "atTick": 42, "sender": "alice", "envelope": { "nonce": 6, "cmd": { "kind": "entity.move", "ix": 1, "iy": 1 } } }
+  ]
+}
