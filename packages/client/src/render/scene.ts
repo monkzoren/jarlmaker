@@ -1,10 +1,14 @@
 /**
- * The PixiJS stage. Owns the canvas, the integer zoom, and one animated
- * castaway per entity (with a ground shadow, drawn nearest-last).
+ * The PixiJS stage. Owns the canvas, the integer zoom, the camera (which
+ * follows the snapshot's `focus`), the streamed terrain, and one animated
+ * castaway per entity. Props and characters share one y-sorted layer, so
+ * you walk behind a pine and in front of it.
  * Everything outside `render/` talks to it through `GameRenderer`.
  */
-import { CASTAWAY, type Frame, type SpriteSheet } from '@bastion/art'
+import { CASTAWAY, DECALS, PROP_ART, TILES, type Frame, type SpriteSheet } from '@bastion/art'
+import type { Terrain } from '@bastion/core'
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js'
+import { createTerrainLayer } from './terrain/layer.ts'
 import { advanceAnim, ANIM_TIMING, initialAnim, pickFrame, type AnimKnobs, type AnimState } from './animation.ts'
 import { rasterize } from './raster.ts'
 import { diffEntities, type RenderSnapshot } from './snapshot.ts'
@@ -18,7 +22,13 @@ export interface GameRenderer {
   destroy(): void
 }
 
-const BACKGROUND = 0x3b4448 // sea grey
+const BACKGROUND = 0x223a48 // deep sea, behind chunks still streaming in
+
+export interface WorldArt {
+  readonly terrain: Terrain
+  readonly chunkSize: number
+  readonly seed: number
+}
 
 /** Shadow under the feet: art pixels wide/high, and its opacity. */
 const SHADOW = { w: 12, h: 4, alpha: 0.28 } as const
@@ -36,7 +46,7 @@ function frameTexture(frame: Frame, sheet: SpriteSheet): Texture {
   return texture
 }
 
-export async function createRenderer(host: HTMLElement): Promise<GameRenderer> {
+export async function createRenderer(host: HTMLElement, worldArt: WorldArt): Promise<GameRenderer> {
   const app = new Application()
   // resolution 1 + a canvas sized in device pixels: we own the DPR maths so
   // the zoom is an exact integer number of device pixels per art pixel.
@@ -51,9 +61,13 @@ export async function createRenderer(host: HTMLElement): Promise<GameRenderer> {
   })
   host.appendChild(app.canvas)
 
+  // `world` is the camera; `ground` holds chunk textures, `actors` the y-sorted props and characters.
   const world = new Container()
+  const ground = new Container()
+  const actors = new Container()
+  actors.sortableChildren = true
+  world.addChild(ground, actors)
   app.stage.addChild(world)
-  world.sortableChildren = true
   const sheet = CASTAWAY
   const textures = new Map<string, Texture>()
   for (const [anim, byFacing] of Object.entries(sheet.anims))
@@ -63,6 +77,19 @@ export async function createRenderer(host: HTMLElement): Promise<GameRenderer> {
   const shadow = new Graphics().ellipse(0, 0, SHADOW.w / 2, SHADOW.h / 2).fill({ color: 0x000000, alpha: SHADOW.alpha })
   const shadowTexture = app.renderer.generateTexture(shadow)
   shadowTexture.source.scaleMode = 'nearest'
+  const terrainLayer = createTerrainLayer({
+    ground,
+    actors,
+    terrain: worldArt.terrain,
+    chunkSize: worldArt.chunkSize,
+    seed: worldArt.seed,
+    art: { tiles: TILES, decals: DECALS },
+    props: PROP_ART,
+    shadow: shadowTexture,
+    shadowWidthPx: SHADOW.w,
+  })
+  let view = { w: 1, h: 1 }
+  let focus = { x: 0, y: 0 }
 
   interface Actor {
     readonly root: Container
@@ -84,9 +111,13 @@ export async function createRenderer(host: HTMLElement): Promise<GameRenderer> {
     app.canvas.style.width = `${devW / dpr}px`
     app.canvas.style.height = `${devH / dpr}px`
     app.stage.scale.set(zoom)
-    // Placeholder camera: world origin at screen centre, on a whole art pixel.
-    // The real camera (follow, clamps) is P1-013.
-    world.position.set(Math.floor(devW / zoom / 2), Math.floor(devH / zoom / 2))
+    view = { w: devW / zoom, h: devH / zoom }
+    aim()
+  }
+
+  /** Put `focus` at the screen centre, on a whole art pixel (no sub-pixel shimmer). */
+  function aim(): void {
+    world.position.set(Math.round(view.w / 2 - focus.x), Math.round(view.h / 2 - focus.y))
   }
 
   layout()
@@ -113,7 +144,7 @@ export async function createRenderer(host: HTMLElement): Promise<GameRenderer> {
         const body = new Sprite(textures.get('idle.down.0'))
         body.anchor.set(0.5, 1)
         root.addChild(foot, body)
-        world.addChild(root)
+        actors.addChild(root)
         sprites.set(e.id, { root, body, anim: initialAnim(e.x, e.y) })
       }
       for (const e of diff.moved) {
@@ -130,11 +161,15 @@ export async function createRenderer(host: HTMLElement): Promise<GameRenderer> {
         const x = Math.round(e.x)
         const y = Math.round(e.y)
         a.root.position.set(x, y)
-        a.root.zIndex = y
+        if (a.root.zIndex !== y) a.root.zIndex = y
       }
+      if (snapshot.focus) focus = snapshot.focus
+      aim()
+      terrainLayer.update(focus.x, focus.y, view.w / 2, view.h / 2)
     },
     destroy() {
       window.removeEventListener('resize', layout)
+      terrainLayer.destroy()
       for (const t of textures.values()) t.destroy(true)
       shadowTexture.destroy(true)
       app.destroy(true, { children: true })

@@ -6,3 +6,4 @@
 
 export { MemoryStore, type MemoryStoreOptions } from './store/memory.ts'
 export { createRng } from './store/rng.ts'
+export { FLAT_WORLD_SECTIONS, FLAT_WORLD_TUNING } from './world/fixture.ts'
