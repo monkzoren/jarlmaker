@@ -2,11 +2,13 @@
 // Every input is hostile. Returns a `Rejection` as a value and never throws on
 // bad input; the host throws on a rejection so the reducer transaction rolls
 // back. Order: envelope shape, nonce, command kind, payload schema, handler,
-// then record the nonce and dispatch the handler's events.
+// then record the nonce and dispatch the handler's events. The handler and
+// the event handlers see the current tick (`world_clock`), read once.
 
 import { commandEnvelopeSchema, reject, type Rejection } from './commands.ts'
 import { dispatch } from './dispatch.ts'
 import type { Game } from './game.ts'
+import { currentTick } from './kernel/clock.ts'
 import { isDuplicate, recordNonce } from './kernel/nonce.ts'
 import { StepStore } from './kernel/step-store.ts'
 import { REGISTRY, type DispatchTable } from './registry.ts'
@@ -45,10 +47,11 @@ export function execute(
   if (!payload.success) return reject('bad_payload', `${kind}: ${describe(payload.error)}`)
 
   const step = new StepStore(store)
-  const rejection = def.handle({ game, store: step, sender }, { ...(payload.data as object), kind })
+  const tick = currentTick(store)
+  const rejection = def.handle({ game, store: step, sender, tick }, { ...(payload.data as object), kind })
   if (rejection !== undefined) return rejection
 
   recordNonce(store, sender, nonce)
-  dispatch(registry, { game, store: step }, step)
+  dispatch(registry, { game, store: step, tick }, step)
   return undefined
 }
