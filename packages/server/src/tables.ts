@@ -15,6 +15,16 @@ export const tables = {
       nonce: t.f64(),
     },
   ),
+  world_clock: table(
+    {
+      name: 'world_clock',
+      public: true,
+    },
+    {
+      id: t.string().primaryKey(),
+      tick: t.f64(),
+    },
+  ),
 } as const
 
 /* gen-tables manifest: the append-only baseline for the next run. Do not edit.
@@ -24,6 +34,13 @@ export const tables = {
     "columns": [
       {"name":"sender","type":"string"},
       {"name":"nonce","type":"f64"}
+    ]
+  },
+  "world_clock": {
+    "pk": "id",
+    "columns": [
+      {"name":"id","type":"string"},
+      {"name":"tick","type":"f64"}
     ]
   }
 }
