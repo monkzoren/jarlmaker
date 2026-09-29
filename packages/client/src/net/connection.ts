@@ -33,13 +33,19 @@ export const SUBSCRIPTIONS = [
   'SELECT * FROM cell_delta',
 ] as const
 
+const hex = (identity: string): string => identity.replace(/[^0-9a-f]/gi, '')
+
 /** The local player's inventory rows only. */
-export const inventoryQuery = (identity: string): string => `SELECT * FROM inventory WHERE owner = '${identity.replace(/[^0-9a-f]/gi, '')}'`
+export const inventoryQuery = (identity: string): string => `SELECT * FROM inventory WHERE owner = '${hex(identity)}'`
+
+/** The local player's meters only. */
+export const vitalsQuery = (identity: string): string => `SELECT * FROM player_vitals WHERE owner = '${hex(identity)}'`
 
 /** A link that can also send the world commands. */
 export interface GameLink extends Link {
   harvest(nonce: number, cx: number, cy: number): Promise<void>
   build(nonce: number, def: string, cx: number, cy: number): Promise<void>
+  eat(nonce: number, item: string): Promise<void>
 }
 
 export interface NetDeps {
@@ -73,6 +79,8 @@ export interface Net {
   harvest(cx: number, cy: number): Promise<void>
   /** `structure.build`: queued across dropouts like every command but moves. */
   build(def: string, cx: number, cy: number): Promise<void>
+  /** `player.eat`: queued across dropouts like every command but moves. */
+  eat(item: string): Promise<void>
   disconnect(): void
 }
 
@@ -142,6 +150,10 @@ export function connect(deps: NetDeps): Net {
       const nonce = nonces.next()
       return reconnector.command((l) => l.build(nonce, def, cx, cy))
     },
+    eat: (item) => {
+      const nonce = nonces.next()
+      return reconnector.command((l) => l.eat(nonce, item))
+    },
     disconnect: () => {
       if (typeof window !== 'undefined') window.removeEventListener('online', nudge)
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible)
@@ -170,13 +182,13 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
         .onApplied(() => {
           if (!live) return
           snapshot.replace([...c.db.entity.iter()], [...c.db.entityPos.iter()])
-          deps.world?.replace([...c.db.cellDelta.iter()], [...c.db.inventory.iter()])
+          deps.world?.replace([...c.db.cellDelta.iter()], [...c.db.inventory.iter()], [...c.db.playerVitals.iter()])
           h.ready(identity)
         })
         .onError((ctx: ErrorContext) => {
           if (live) h.lost(`subscription: ${message(ctx.event)}`)
         })
-        .subscribe([...SUBSCRIPTIONS, inventoryQuery(identity)])
+        .subscribe([...SUBSCRIPTIONS, inventoryQuery(identity), vitalsQuery(identity)])
     })
     .onConnectError((_ctx, err) => {
       if (!live) return
@@ -252,6 +264,13 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
     }
     conn.db.inventory.onInsert((_ctx, row) => item(row))
     conn.db.inventory.onUpdate((_ctx, _old, row) => item(row))
+    const vitals = (row: Parameters<WorldMirror['upsertVitals']>[0]): void => {
+      if (!live) return
+      traffic()
+      world.upsertVitals(row)
+    }
+    conn.db.playerVitals.onInsert((_ctx, row) => vitals(row))
+    conn.db.playerVitals.onUpdate((_ctx, _old, row) => vitals(row))
   }
   conn.db.worldClock.onInsert((_ctx, row) => clock(row))
   conn.db.worldClock.onUpdate((_ctx, _old, row) => clock(row))
@@ -261,6 +280,7 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
     join: (nonce) => conn.reducers.join({ nonce }),
     harvest: (nonce, cx, cy) => conn.reducers.harvest({ nonce, cx, cy }),
     build: (nonce, def, cx, cy) => conn.reducers.build({ nonce, def, cx, cy }),
+    eat: (nonce, item) => conn.reducers.eat({ nonce, item }),
     close: () => {
       live = false
       conn.disconnect()

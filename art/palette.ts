@@ -53,4 +53,5 @@ export const WORLD_PALETTE: Readonly<Record<string, string>> = {
   N: '#f08a2c', // flame
   O: '#c8421e', // flame edge
   Z: '#ffe9a8', // spark
+  D: '#c23b3b', // heart red
 }

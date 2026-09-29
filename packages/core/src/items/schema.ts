@@ -10,6 +10,8 @@ export const itemDef = z.object({
   name: z.string().min(1),
   /** Art id of its icon (`art/items`). */
   icon: z.string().min(1),
+  /** Food points restored by eating one (survival). Absent: not edible. */
+  food: z.number().positive().optional(),
 })
 registerContent('items', itemDef)
 

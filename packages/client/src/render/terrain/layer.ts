@@ -7,7 +7,8 @@
  * Ground comes from the generated terrain alone; props come from the live
  * world (terrain plus `cell_delta` mutations), so a felled pine turns into a
  * stump and a built campfire appears without repainting the ground.
- * Multi-frame props (the campfire) animate; campfires also glow.
+ * Multi-frame props (the campfire) animate. Props with a `light` glow, and
+ * cut a flickering hole of their radius in the night's darkness.
  */
 import type { Picture } from '@bastion/art'
 import type { LiveWorld, Terrain } from '@bastion/core'
@@ -32,6 +33,10 @@ export interface TerrainLayerOptions {
   readonly shadowWidthPx: number
   /** A soft round light, drawn additively around light sources. */
   readonly light: Texture
+  /** Where light sources cut holes in the night (drawn into the darkness mask with `erase`). */
+  readonly holes: Container
+  /** A soft white disc: the hole a light cuts. */
+  readonly hole: Texture
 }
 
 export interface TerrainLayer {
@@ -50,8 +55,6 @@ export interface TerrainLayer {
 const PAINT_PER_FRAME = 2
 /** Props that cast no ground shadow (they lie on the ground already). */
 const NO_SHADOW = new Set(['wreck', 'stump', 'campfire'])
-/** Props that give off light, with their glow radius in px. */
-const LIGHTS: Readonly<Record<string, number>> = { campfire: 56 }
 /** Frame rate of animated props (CLAUDE.md 3.5.9). */
 const PROP_FPS = 8
 
@@ -60,6 +63,8 @@ interface PropView {
   readonly body: Sprite
   readonly frames: readonly Texture[]
   readonly glow: Sprite | undefined
+  readonly hole: Sprite | undefined
+  readonly radiusPx: number
   readonly phase: number
 }
 
@@ -101,7 +106,7 @@ export function createTerrainLayer(o: TerrainLayerOptions): TerrainLayer {
     return t
   }
 
-  function propView(sprite: string, cx: number, cy: number, w: number, h: number): PropView {
+  function propView(sprite: string, cx: number, cy: number, w: number, h: number, lightCells: number | undefined): PropView {
     const root = new Container()
     const frames = framesOf(sprite)
     const first = frames[0]!
@@ -121,16 +126,22 @@ export function createTerrainLayer(o: TerrainLayerOptions): TerrainLayer {
     root.zIndex = y
     o.actors.addChild(root)
     let glow: Sprite | undefined
-    const radius = LIGHTS[sprite]
-    if (radius !== undefined) {
+    let hole: Sprite | undefined
+    const radiusPx = (lightCells ?? 0) * TILE
+    if (lightCells !== undefined) {
       glow = new Sprite(o.light)
       glow.anchor.set(0.5, 0.5)
       glow.blendMode = 'add'
-      glow.scale.set((radius * 2) / o.light.width)
+      glow.scale.set((radiusPx * 2) / o.light.width)
       glow.position.set(x, y - TILE / 2)
       o.glow.addChild(glow)
+      hole = new Sprite(o.hole)
+      hole.anchor.set(0.5, 0.5)
+      hole.blendMode = 'erase'
+      hole.position.set(x, y - TILE / 2)
+      o.holes.addChild(hole)
     }
-    return { root, body, frames, glow, phase: (cx * 7 + cy * 13) % 5 }
+    return { root, body, frames, glow, hole, radiusPx, phase: (cx * 7 + cy * 13) % 5 }
   }
 
   function buildProps(c: Chunk): void {
@@ -143,13 +154,14 @@ export function createTerrainLayer(o: TerrainLayerOptions): TerrainLayer {
         const cell = o.world.cell(x0 + i, y0 + j)
         if (cell.prop === undefined) continue
         const [w, h] = cell.prop.footprint
-        c.props.set(`${x0 + i},${y0 + j}`, propView(cell.prop.sprite, x0 + i, y0 + j, w, h))
+        c.props.set(`${x0 + i},${y0 + j}`, propView(cell.prop.sprite, x0 + i, y0 + j, w, h, cell.prop.light?.radius))
       }
   }
 
   function destroyProp(p: PropView): void {
     p.root.destroy({ children: true })
     p.glow?.destroy()
+    p.hole?.destroy()
   }
 
   function build(ccx: number, ccy: number): Chunk {
@@ -194,7 +206,9 @@ export function createTerrainLayer(o: TerrainLayerOptions): TerrainLayer {
             const t = p.frames[(frame + p.phase) % p.frames.length]!
             if (p.body.texture !== t) p.body.texture = t
           }
-          if (p.glow) p.glow.alpha = 0.55 + 0.12 * Math.sin(nowMs / 90 + p.phase) + 0.06 * Math.sin(nowMs / 37 + p.phase * 2)
+          const flicker = 0.12 * Math.sin(nowMs / 90 + p.phase) + 0.06 * Math.sin(nowMs / 37 + p.phase * 2)
+          if (p.glow) p.glow.alpha = 0.55 + flicker
+          if (p.hole) p.hole.scale.set(((p.radiusPx * 2) / o.hole.width) * (1 + flicker * 0.25))
         }
     },
     refresh(cx, cy) {

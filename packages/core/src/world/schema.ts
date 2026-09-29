@@ -94,6 +94,13 @@ export const propDef = z.object({
   blocks: z.boolean(),
   /** Cells covered, [w, h], from its anchor cell towards +x and +y. Flora props are 1×1. */
   footprint: z.tuple([z.int().positive(), z.int().positive()]),
+  /** Gives off light and heat (a campfire): lit radius in cells, warmth per second within it. Placed props only. */
+  light: z
+    .object({
+      radius: z.number().positive(),
+      warmthPerSec: z.number().min(0),
+    })
+    .optional(),
   /** Harvestable: each hit yields one `item`; after `hits` hits the prop becomes `leaves` ('' = nothing). 1x1 props only. */
   harvest: z
     .object({

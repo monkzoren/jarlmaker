@@ -3,8 +3,10 @@
 //
 //   world.harvested  -> +1 of the harvested item
 //   structure.built  -> -cost of the structure
+//   player.ate       -> -1 of the eaten item
 
 import '../structures/events.ts'
+import '../survival/events.ts'
 import '../world/events.ts'
 import { onEvent } from '../registry.ts'
 import { addItem } from './rules.ts'
@@ -16,3 +18,5 @@ onEvent('structure.built', (ctx, e) => {
   if (def === undefined) return
   for (const [item, n] of Object.entries(def.cost)) addItem(ctx.store, e.by, item, -n)
 })
+
+onEvent('player.ate', (ctx, e) => addItem(ctx.store, e.owner, e.item, -1))

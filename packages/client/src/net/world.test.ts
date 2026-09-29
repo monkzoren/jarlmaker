@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createWorldMirror, type ItemChange, type WorldChange } from './world.ts'
+import { createWorldMirror, type MirrorChange } from './world.ts'
 
 const delta = (cx: number, cy: number, prop: string, hits = 0) => ({ key: `${cx},${cy}`, cx, cy, prop, hits, owner: '' })
 
 describe('world mirror', () => {
   it('looks deltas up by cell and reports each real change once', () => {
     const m = createWorldMirror()
-    const seen: (WorldChange | ItemChange)[] = []
+    const seen: MirrorChange[] = []
     m.onChange((c) => seen.push(c))
     m.upsertDelta(delta(3, -2, 'pine', 1))
     m.upsertDelta(delta(3, -2, 'pine', 1))
@@ -21,7 +21,7 @@ describe('world mirror', () => {
 
   it("keeps only the owner's items, and marks a resubscription's catch-up as quiet", () => {
     const m = createWorldMirror()
-    const seen: (WorldChange | ItemChange)[] = []
+    const seen: MirrorChange[] = []
     m.onChange((c) => seen.push(c))
     m.upsertItem({ owner: 'me', item: 'wood', count: 3 }) // owner not known yet: ignored
     m.setOwner('me')

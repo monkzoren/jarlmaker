@@ -11,7 +11,7 @@ What the player carries: every harvest adds to it and every build takes from it.
 
 | Section | Fields | Notes |
 |---|---|---|
-| `items` | `id, name, icon` | `icon` is an art id in `art/items`. |
+| `items` | `id, name, icon, food` | `icon` is an art id in `art/items`. `food`: points restored by eating one (survival). |
 
 | Table | Shape | Index | Notes |
 |---|---|---|---|
@@ -25,6 +25,7 @@ None yet. Items move through events:
 |---|---|
 | `world.harvested` | +1 of the harvested item for `by`. |
 | `structure.built` | −cost of the structure for `by` (the build command checked it first). |
+| `player.ate` | −1 of the eaten item. |
 
 ## Rules
 

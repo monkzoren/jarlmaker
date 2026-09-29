@@ -4,7 +4,10 @@
  * - two thumb buttons (bottom right): Act (hit what you face, or place in
  *   build mode) and Build (toggle build mode for the campfire, showing its cost
  *   and greyed out while you cannot afford it).
- * Icons are the art package's pixel sources, rasterized once to data URLs.
+ * - three meters (top centre): health, warmth, food, pulsing when low;
+ * - a banner for moments that matter (night falls, you froze).
+ * Food slots are tappable (eat). Icons are the art package's pixel sources,
+ * rasterized once to data URLs.
  * The HUD re-renders on mirror changes, never per frame.
  */
 import { ICONS, PROP_ART, type Picture } from '@bastion/art'
@@ -18,6 +21,10 @@ export interface HudOptions {
   readonly onActDown: () => void
   readonly onActUp: () => void
   readonly onBuild: () => void
+  /** Tapping an item's slot (eat it, if it is food). */
+  readonly onSlot: (item: string) => void
+  /** `tuning.survival.meterMax`. */
+  readonly meterMax: number
 }
 
 export interface Hud {
@@ -27,6 +34,10 @@ export interface Hud {
   setBuildMode(on: boolean): void
   /** A short message above the bar (e.g. why a build was refused). */
   say(text: string): void
+  /** The three meters. */
+  setVitals(v: { readonly hp: number; readonly warmth: number; readonly food: number }): void
+  /** A big line at the top of the screen for a moment ("Night falls"). */
+  announce(title: string, sub?: string): void
   dispose(): void
 }
 
@@ -56,6 +67,17 @@ const CSS = `
 .hud-btn.on{border-color:#9fe07a;box-shadow:0 0 10px #9fe07a88}
 .hud-btn.off{opacity:.45}
 #hud-act{right:18px;bottom:18px}
+#hud-meters{position:fixed;left:50%;top:10px;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none;z-index:2}
+.hud-meter{display:flex;align-items:center;gap:3px}
+.hud-meter img{width:24px;height:24px;image-rendering:pixelated}
+.hud-meter .bar{width:64px;height:10px;background:#1b1f22cc;border:2px solid #1b1f22;border-radius:2px;overflow:hidden}
+.hud-meter .fill{height:100%;transition:width .4s}
+.hud-meter.low .bar{animation:hud-pulse .8s infinite alternate}
+@keyframes hud-pulse{to{border-color:#e0702a;box-shadow:0 0 6px #e0702a}}
+#hud-announce{position:fixed;left:50%;top:18%;transform:translateX(-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .6s;z-index:2;font-family:Georgia,serif;color:#f4ead2;text-shadow:2px 2px 0 #1b1f22}
+#hud-announce b{display:block;font-size:30px;letter-spacing:2px}
+#hud-announce span{font:bold 13px monospace}
+.hud-slot.food{pointer-events:auto;cursor:pointer}
 #hud-build{right:96px;bottom:42px;width:56px;height:56px}
 #hud-build img{width:32px;height:32px}
 `
@@ -69,6 +91,22 @@ export function createHud(o: HudOptions): Hud {
   const say = document.createElement('div')
   say.id = 'hud-say'
   const icons = new Map(o.items.map((i) => [i.id, iconUrl(ICONS[i.icon])]))
+  const food = new Set(o.items.filter((i) => i.food !== undefined).map((i) => i.id))
+  const meters = document.createElement('div')
+  meters.id = 'hud-meters'
+  const meter = (icon: string, color: string): { el: HTMLElement; fill: HTMLElement } => {
+    const el = document.createElement('div')
+    el.className = 'hud-meter'
+    el.innerHTML = `<img alt="" src="${iconUrl(ICONS[icon])}"><div class="bar"><div class="fill" style="background:${color}"></div></div>`
+    meters.appendChild(el)
+    return { el, fill: el.querySelector('.fill') as HTMLElement }
+  }
+  const hpMeter = meter('heart', '#c23b3b')
+  const warmMeter = meter('warmth', '#f08a2c')
+  const foodMeter = meter('berries', '#7d9bd0')
+  const banner = document.createElement('div')
+  banner.id = 'hud-announce'
+  let bannerTimer: ReturnType<typeof setTimeout> | undefined
   const names = new Map(o.items.map((i) => [i.id, i.name]))
   const slots = new Map<string, HTMLElement>()
   const counts = new Map<string, number>()
@@ -99,7 +137,7 @@ export function createHud(o: HudOptions): Hud {
     e.preventDefault()
     o.onBuild()
   })
-  document.body.append(bar, say, act, build)
+  document.body.append(bar, say, act, build, meters, banner)
   let sayTimer: ReturnType<typeof setTimeout> | undefined
 
   return {
@@ -111,6 +149,15 @@ export function createHud(o: HudOptions): Hud {
           slot.className = 'hud-slot'
           slot.title = names.get(item) ?? item
           slot.innerHTML = `<img alt="" src="${icons.get(item) ?? ''}"><b></b>`
+          if (food.has(item)) {
+            slot.classList.add('food')
+            slot.title = `${names.get(item) ?? item}: tap or press F to eat`
+            slot.addEventListener('pointerdown', (e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              o.onSlot(item)
+            })
+          }
           bar.appendChild(slot)
           slots.set(item, slot)
         }
@@ -135,7 +182,29 @@ export function createHud(o: HudOptions): Hud {
       if (sayTimer) clearTimeout(sayTimer)
       sayTimer = setTimeout(() => (say.style.opacity = '0'), 1600)
     },
+    setVitals(v) {
+      const set = (m: { el: HTMLElement; fill: HTMLElement }, x: number): void => {
+        const pct = Math.max(0, Math.min(100, (x / o.meterMax) * 100))
+        m.fill.style.width = `${pct}%`
+        m.el.classList.toggle('low', pct < 25)
+      }
+      set(hpMeter, v.hp)
+      set(warmMeter, v.warmth)
+      set(foodMeter, v.food)
+    },
+    announce(title, sub) {
+      banner.innerHTML = `<b></b><span></span>`
+      const b = banner.querySelector('b')
+      const s = banner.querySelector('span')
+      if (b) b.textContent = title
+      if (s) s.textContent = sub ?? ''
+      banner.style.opacity = '1'
+      if (bannerTimer) clearTimeout(bannerTimer)
+      bannerTimer = setTimeout(() => (banner.style.opacity = '0'), 3200)
+    },
     dispose() {
+      meters.remove()
+      banner.remove()
       style.remove()
       bar.remove()
       say.remove()

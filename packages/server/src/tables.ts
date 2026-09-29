@@ -118,6 +118,22 @@ export const tables = {
       readyTick: t.f64(),
     },
   ),
+  player_vitals: table(
+    {
+      name: 'player_vitals',
+      public: true,
+      indexes: [
+        { accessor: 'by_bucket', algorithm: 'btree', columns: ['bucket'] },
+      ],
+    },
+    {
+      owner: t.string().primaryKey(),
+      bucket: t.i32(),
+      hp: t.f64(),
+      warmth: t.f64(),
+      food: t.f64(),
+    },
+  ),
   world_clock: table(
     {
       name: 'world_clock',
@@ -204,6 +220,16 @@ export const tables = {
     "columns": [
       {"name":"owner","type":"string"},
       {"name":"readyTick","type":"f64"}
+    ]
+  },
+  "player_vitals": {
+    "pk": "owner",
+    "columns": [
+      {"name":"owner","type":"string"},
+      {"name":"bucket","type":"i32"},
+      {"name":"hp","type":"f64"},
+      {"name":"warmth","type":"f64"},
+      {"name":"food","type":"f64"}
     ]
   },
   "world_clock": {

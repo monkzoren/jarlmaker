@@ -7,7 +7,7 @@
  */
 import { CASTAWAY, DECALS, PROP_ART, TILES, type Frame, type SpriteSheet } from '@bastion/art'
 import type { LiveWorld, Terrain } from '@bastion/core'
-import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js'
+import { Application, Container, Graphics, RenderTexture, Sprite, Texture } from 'pixi.js'
 import { createFx } from './fx.ts'
 import { createTerrainLayer } from './terrain/layer.ts'
 import { TILE } from './terrain/paint.ts'
@@ -48,6 +48,8 @@ export interface GameRenderer {
   floatFrom(id: string, text: string, color: number): void
   /** Entity `id` swings towards cell (cx, cy). */
   swing(id: string, cx: number, cy: number): void
+  /** How light it is (1 day, 0 night): darkens the world outside lights. */
+  setDaylight(daylight: number): void
   /** Current integer zoom (device pixels per art pixel). */
   readonly zoom: Zoom
   destroy(): void
@@ -62,6 +64,11 @@ export interface WorldArt {
   readonly chunkSize: number
   readonly seed: number
 }
+
+/** The night: its colour and how opaque it gets at full dark. */
+const NIGHT = { color: 0x0b1226, alpha: 0.82 } as const
+/** The small light you carry, cells; enough to see yourself and the cell you face. */
+const OWN_LIGHT_CELLS = 1.6
 
 /** Shadow under the feet: art pixels wide/high, and its opacity. */
 const SHADOW = { w: 12, h: 4, alpha: 0.28 } as const
@@ -78,6 +85,23 @@ function lightTexture(): Texture {
   g.addColorStop(0, 'rgba(255, 170, 80, 0.55)')
   g.addColorStop(0.45, 'rgba(240, 120, 40, 0.22)')
   g.addColorStop(1, 'rgba(224, 112, 42, 0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, size, size)
+  return Texture.from(canvas)
+}
+
+/** A soft white disc, opaque in the middle: erased from the night where a light shines. */
+function holeTexture(): Texture {
+  const size = 64
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('2d canvas unavailable')
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.55, 'rgba(255,255,255,0.85)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, size, size)
   return Texture.from(canvas)
@@ -132,7 +156,27 @@ export async function createRenderer(host: HTMLElement, worldArt: WorldArt): Pro
   const shadowTexture = app.renderer.generateTexture(shadow)
   shadowTexture.source.scaleMode = 'nearest'
   const light = lightTexture()
+  const hole = holeTexture()
+  // The night: a render texture filled with darkness each frame, with every
+  // light's hole erased from it, drawn over the world at art-pixel resolution.
+  const holesRoot = new Container()
+  const holes = new Container()
+  holesRoot.addChild(holes)
+  const ownHole = new Sprite(hole)
+  ownHole.anchor.set(0.5, 0.5)
+  ownHole.blendMode = 'erase'
+  ownHole.alpha = 0.7
+  ownHole.scale.set((OWN_LIGHT_CELLS * TILE * 2) / hole.width)
+  holes.addChild(ownHole)
+  const nightFill = new Graphics()
+  let darkRT = RenderTexture.create({ width: 1, height: 1 })
+  const darkness = new Sprite(darkRT)
+  darkness.visible = false
+  app.stage.addChild(darkness)
+  let daylight = 1
   const terrainLayer = createTerrainLayer({
+    holes,
+    hole,
     ground,
     actors,
     glow,
@@ -168,7 +212,7 @@ export async function createRenderer(host: HTMLElement, worldArt: WorldArt): Pro
     return t
   }
   /** Chip colours by the prop that was hit. */
-  const CHIP: Readonly<Record<string, number>> = { pine: 0x8a6a48, boulder: 0x90969a, 'rock.small': 0x90969a }
+  const CHIP: Readonly<Record<string, number>> = { pine: 0x8a6a48, boulder: 0x90969a, 'rock.small': 0x90969a, 'bush.juniper': 0x7d9bd0 }
 
   interface Actor {
     readonly root: Container
@@ -191,12 +235,28 @@ export async function createRenderer(host: HTMLElement, worldArt: WorldArt): Pro
     app.canvas.style.height = `${devH / dpr}px`
     app.stage.scale.set(zoom)
     view = { w: devW / zoom, h: devH / zoom }
+    darkRT.destroy(true)
+    darkRT = RenderTexture.create({ width: Math.ceil(view.w), height: Math.ceil(view.h) })
+    darkness.texture = darkRT
     aim()
   }
 
   /** Put `focus` at the screen centre, on a whole art pixel (no sub-pixel shimmer). */
   function aim(): void {
     world.position.set(Math.round(view.w / 2 - focus.x), Math.round(view.h / 2 - focus.y))
+  }
+
+  /** Darkness over everything but the lights, by how far into the night it is. */
+  function drawNight(): void {
+    const a = NIGHT.alpha * (1 - daylight)
+    glow.alpha = 0.35 + 0.65 * (1 - daylight)
+    darkness.visible = a > 0.01
+    if (!darkness.visible) return
+    nightFill.clear().rect(0, 0, darkRT.width, darkRT.height).fill({ color: NIGHT.color, alpha: a })
+    ownHole.position.set(focus.x, focus.y - TILE)
+    holesRoot.position.copyFrom(world.position)
+    app.renderer.render({ container: nightFill, target: darkRT, clear: true })
+    app.renderer.render({ container: holesRoot, target: darkRT, clear: false })
   }
 
   /** Corner brackets around the hit target, or a ghost of what would be built. */
@@ -278,6 +338,10 @@ export async function createRenderer(host: HTMLElement, worldArt: WorldArt): Pro
       terrainLayer.update(focus.x, focus.y, view.w / 2, view.h / 2, now)
       drawTarget(now)
       fx.update(now)
+      drawNight()
+    },
+    setDaylight(d) {
+      daylight = d
     },
     setTarget(t) {
       target = t
@@ -310,6 +374,8 @@ export async function createRenderer(host: HTMLElement, worldArt: WorldArt): Pro
       terrainLayer.destroy()
       fx.destroy()
       light.destroy(true)
+      hole.destroy(true)
+      darkRT.destroy(true)
       for (const t of ghostTextures.values()) t.destroy(true)
       for (const t of textures.values()) t.destroy(true)
       shadowTexture.destroy(true)

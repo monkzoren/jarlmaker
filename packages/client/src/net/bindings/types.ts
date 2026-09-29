@@ -84,6 +84,15 @@ export const PlayerAction = __t.object("PlayerAction", {
 });
 export type PlayerAction = __Infer<typeof PlayerAction>;
 
+export const PlayerVitals = __t.object("PlayerVitals", {
+  owner: __t.string(),
+  bucket: __t.i32(),
+  hp: __t.f64(),
+  warmth: __t.f64(),
+  food: __t.f64(),
+});
+export type PlayerVitals = __Infer<typeof PlayerVitals>;
+
 export const TickSchedule = __t.object("TickSchedule", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),

@@ -26,6 +26,7 @@ import {
 import { createRenderer } from './render/index.ts'
 import { createConnectionHud } from './ui/connection/index.ts'
 import { createHud } from './ui/hud/index.ts'
+import { createSurvivalUi } from './ui/survival.ts'
 
 const host = document.getElementById('game')
 if (!host) throw new Error('#game host element missing')
@@ -97,12 +98,12 @@ const play = createPlay({
 })
 
 // Read-only probe for the smoke suite (tests/smoke/offline-tap.ts): where the
-// local player was last drawn. Nothing reads it per frame.
-Object.assign(window, { bastionProbe: { drawn: () => play.drawn() } })
+// local player was last drawn, and the server tick. Nothing reads it per frame.
+Object.assign(window, { bastionProbe: { drawn: () => play.drawn(), clock: () => snapshot.clock } })
 
 createInput(play.sink, { knobs: { tickHz: net.tickHz, deadZone: input.deadZone, stickRadiusPx: input.stickRadiusPx } })
 
-// The first survival loop: hit pines and rocks for wood and stone, build a campfire.
+// The survival loop: hit pines, rocks and bushes; build a campfire; get through the night.
 const campfire = content.structures.find((s) => s.id === 'campfire')
 if (campfire === undefined) throw new Error('content has no campfire structure')
 const itemName = new Map(content.items.map((i) => [i.id, i.name]))
@@ -129,9 +130,23 @@ const survivalHud = createHud({
   onActDown: () => actions.actDown(),
   onActUp: () => actions.actUp(),
   onBuild: () => actions.toggleBuild(),
+  onSlot: (item) => survival.eat(item),
+  meterMax: content.tuning.survival.meterMax,
+})
+// Day and night, warmth and food.
+const survival = createSurvivalUi({
+  tuning: content.tuning.survival,
+  items: content.items,
+  mirror,
+  renderer,
+  hud: survivalHud,
+  clock: () => snapshot.clock,
+  eat: (item) => connection.eat(item),
 })
 const refreshHud = (): void => survivalHud.setItems(mirror.items(), Object.entries(campfire.cost).every(([i, n]) => mirror.count(i) >= n))
 mirror.onChange((c) => {
+  survival.changed(c)
+  if (c.kind === 'vitals') return
   if (c.kind === 'delta') {
     const base = terrain.cell(c.row.cx, c.row.cy).prop?.id
     renderer.cellChanged({
@@ -154,6 +169,7 @@ setInterval(() => play.tick(), dtMs)
 const frame = (): void => {
   renderer.setEntities(play.frame())
   actions.frame()
+  survival.frame()
   requestAnimationFrame(frame)
 }
 requestAnimationFrame(frame)

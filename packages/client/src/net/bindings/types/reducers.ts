@@ -7,11 +7,13 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import BuildReducer from "../build_reducer";
+import EatReducer from "../eat_reducer";
 import HarvestReducer from "../harvest_reducer";
 import JoinReducer from "../join_reducer";
 import MoveReducer from "../move_reducer";
 
 export type BuildParams = __Infer<typeof BuildReducer>;
+export type EatParams = __Infer<typeof EatReducer>;
 export type HarvestParams = __Infer<typeof HarvestReducer>;
 export type JoinParams = __Infer<typeof JoinReducer>;
 export type MoveParams = __Infer<typeof MoveReducer>;

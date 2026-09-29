@@ -4,6 +4,8 @@ declare module '../events/index.ts' {
   interface EventRegistry {
     /** A step moved `entity` from sector `from` into sector `to` (keys `"sx,sy"`). */
     'entity.sector_changed': { entity: bigint; from: string; to: string }
+    /** `owner` joined for the first time (their player entity was created). */
+    'player.joined': { owner: string }
   }
 }
 

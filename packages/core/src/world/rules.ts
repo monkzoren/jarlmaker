@@ -16,7 +16,7 @@ import type { Content, Game } from '../game.ts'
 import type { Store } from '../store/types.ts'
 import './tables.ts'
 import type { WorldView } from '../entity/world-view.ts'
-import { cellMemo } from './cache.ts'
+import { cellMemo, packable, packCell } from './cache.ts'
 import { fbm, SALT, unit, hash3 } from './noise.ts'
 import './schema.ts'
 import type { BiomeDef, BiomeRole, PropDef } from './schema.ts'
@@ -165,9 +165,29 @@ export type DeltaLookup = (cx: number, cy: number) => Delta | undefined
 
 export const deltaKey = (cx: number, cy: number): string => `${cx},${cy}`
 
-/** The store's `cell_delta` rows as a lookup. */
-export function storeDeltas(store: Store): DeltaLookup {
-  return (cx, cy) => store.get('cell_delta', deltaKey(cx, cy))
+/**
+ * The store's `cell_delta` rows as a lookup. With `sectorSize`, it first asks
+ * (once per sector, by index) whether the cell's sector has any delta at all,
+ * so the common case, open ground nobody has touched, costs no row lookup.
+ * That memo lives as long as the lookup: build one per tick or per command,
+ * and never across a write to `cell_delta`.
+ */
+export function storeDeltas(store: Store, sectorSize?: number): DeltaLookup {
+  const get: DeltaLookup = (cx, cy) => store.get('cell_delta', deltaKey(cx, cy))
+  if (sectorSize === undefined) return get
+  const touched = new Map<number, boolean>()
+  return (cx, cy) => {
+    const sx = Math.floor(cx / sectorSize)
+    const sy = Math.floor(cy / sectorSize)
+    if (!packable(sx, sy)) return get(cx, cy)
+    const key = packCell(sx, sy)
+    let any = touched.get(key)
+    if (any === undefined) {
+      any = !store.byIndex('cell_delta', 'by_sector', `${sx},${sy}`)[Symbol.iterator]().next().done
+      touched.set(key, any)
+    }
+    return any ? get(cx, cy) : undefined
+  }
 }
 
 /** A cell with its mutation applied. */
@@ -243,4 +263,45 @@ export function actionTarget(
       }
     }
   return best
+}
+
+/** A `cell_delta` row as `heatAt` needs it. */
+export interface PlacedDelta extends Delta {
+  readonly cx: number
+  readonly cy: number
+}
+
+/**
+ * Warmth per second at (x, y) from placed light sources (campfires) within
+ * `maxRadius` cells. Reads the deltas of the one to four sectors the radius
+ * touches (`bySector`, an index read on the server), so it costs a handful of
+ * index lookups per player, never terrain generation or a per-cell sweep.
+ */
+export function heatAt(
+  terrain: Terrain,
+  bySector: (sector: string) => Iterable<PlacedDelta>,
+  x: number,
+  y: number,
+  maxRadius: number,
+  sectorSize: number,
+): number {
+  const s0x = Math.floor((x - maxRadius) / sectorSize)
+  const s1x = Math.floor((x + maxRadius) / sectorSize)
+  const s0y = Math.floor((y - maxRadius) / sectorSize)
+  const s1y = Math.floor((y + maxRadius) / sectorSize)
+  let heat = 0
+  for (let sy = s0y; sy <= s1y; sy++)
+    for (let sx = s0x; sx <= s1x; sx++)
+      for (const d of bySector(`${sx},${sy}`)) {
+        if (d.prop === '') continue
+        const light = terrain.prop(d.prop)?.light
+        if (light === undefined) continue
+        if (reachSq(x, y, d.cx, d.cy) <= light.radius * light.radius) heat += light.warmthPerSec
+      }
+  return heat
+}
+
+/** The largest light radius among the content's props (how far `heatAt` must look). */
+export function maxLightRadius(props: readonly PropDef[]): number {
+  return props.reduce((m, p) => Math.max(m, p.light?.radius ?? 0), 0)
 }

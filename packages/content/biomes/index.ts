@@ -40,7 +40,7 @@ export const biomes: BiomeDef[] = [
     layer: 2,
     flora: [
       { id: 'rock.small', chance: 0.02 },
-      { id: 'bush.juniper', chance: 0.04 },
+      { id: 'bush.juniper', chance: 0.05 },
     ],
     decals: [
       { id: 'decal.heather', chance: 0.18 },
@@ -57,7 +57,7 @@ export const biomes: BiomeDef[] = [
     layer: 3,
     flora: [
       { id: 'pine', chance: 0.02 },
-      { id: 'bush.juniper', chance: 0.02 },
+      { id: 'bush.juniper', chance: 0.04 },
       { id: 'rock.small', chance: 0.03 },
     ],
     decals: [

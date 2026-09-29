@@ -10,9 +10,13 @@ export const props: PropDef[] = [
   // A boulder breaks down to a small rock, and the rock to nothing: 6 stone in all.
   { id: 'boulder', sprite: 'boulder', blocks: true, footprint: [1, 1], harvest: { item: 'stone', hits: 4, leaves: 'rock.small' } },
   { id: 'rock.small', sprite: 'rock', blocks: true, footprint: [1, 1], harvest: { item: 'stone', hits: 2, leaves: '' } },
-  { id: 'bush.juniper', sprite: 'bush', blocks: false, footprint: [1, 1] },
+  // Juniper berries: two picks for two handfuls, then a bare bush.
+  { id: 'bush.juniper', sprite: 'bush', blocks: false, footprint: [1, 1], harvest: { item: 'berries', hits: 2, leaves: 'bush.bare' } },
+  { id: 'bush.bare', sprite: 'bush.bare', blocks: false, footprint: [1, 1] },
   // Built by players (structures).
-  { id: 'campfire', sprite: 'campfire', blocks: true, footprint: [1, 1] },
+  // A campfire lights 3.5 cells around it and warms you by 5/s there: more
+  // than the night takes, so sitting by it restores warmth.
+  { id: 'campfire', sprite: 'campfire', blocks: true, footprint: [1, 1], light: { radius: 3.5, warmthPerSec: 5 } },
   // The longship you came ashore in, broken on the beach.
   { id: 'wreck', sprite: 'wreck', blocks: true, footprint: [4, 2] },
 ]

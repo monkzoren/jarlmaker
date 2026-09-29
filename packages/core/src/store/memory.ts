@@ -44,7 +44,8 @@ interface Table {
 function encodeValue(v: unknown): string {
   switch (typeof v) {
     case 'string':
-      return `s${JSON.stringify(v)}`
+      // Length-prefixed: unambiguous without escaping, and far cheaper than JSON.
+      return `s${v.length}:${v}`
     case 'number':
       return Object.is(v, -0) ? 'n0' : `n${v}`
     case 'bigint':
@@ -62,6 +63,8 @@ function encodeValue(v: unknown): string {
 const SEP = '|'
 
 function rowKey(index: Index, row: AnyRow): string {
+  const [only] = index.columns
+  if (index.columns.length === 1 && only !== undefined) return encodeValue(row[only])
   return index.columns.map((c) => encodeValue(row[c])).join(SEP)
 }
 
