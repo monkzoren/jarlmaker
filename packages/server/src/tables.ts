@@ -5,6 +5,24 @@
 import { table, t } from 'spacetimedb/server'
 
 export const tables = {
+  cell_delta: table(
+    {
+      name: 'cell_delta',
+      public: true,
+      indexes: [
+        { accessor: 'by_sector', algorithm: 'btree', columns: ['sector'] },
+      ],
+    },
+    {
+      key: t.string().primaryKey(),
+      cx: t.f64(),
+      cy: t.f64(),
+      sector: t.string(),
+      prop: t.string(),
+      hits: t.f64(),
+      owner: t.string(),
+    },
+  ),
   command_nonce: table(
     {
       name: 'command_nonce',
@@ -75,6 +93,31 @@ export const tables = {
       next: t.i64(),
     },
   ),
+  inventory: table(
+    {
+      name: 'inventory',
+      public: true,
+      indexes: [
+        { accessor: 'by_owner', algorithm: 'btree', columns: ['owner'] },
+      ],
+    },
+    {
+      key: t.string().primaryKey(),
+      owner: t.string(),
+      item: t.string(),
+      count: t.f64(),
+    },
+  ),
+  player_action: table(
+    {
+      name: 'player_action',
+      public: false,
+    },
+    {
+      owner: t.string().primaryKey(),
+      readyTick: t.f64(),
+    },
+  ),
   world_clock: table(
     {
       name: 'world_clock',
@@ -89,6 +132,18 @@ export const tables = {
 
 /* gen-tables manifest: the append-only baseline for the next run. Do not edit.
 {
+  "cell_delta": {
+    "pk": "key",
+    "columns": [
+      {"name":"key","type":"string"},
+      {"name":"cx","type":"f64"},
+      {"name":"cy","type":"f64"},
+      {"name":"sector","type":"string"},
+      {"name":"prop","type":"string"},
+      {"name":"hits","type":"f64"},
+      {"name":"owner","type":"string"}
+    ]
+  },
   "command_nonce": {
     "pk": "sender",
     "columns": [
@@ -133,6 +188,22 @@ export const tables = {
     "columns": [
       {"name":"name","type":"string"},
       {"name":"next","type":"i64"}
+    ]
+  },
+  "inventory": {
+    "pk": "key",
+    "columns": [
+      {"name":"key","type":"string"},
+      {"name":"owner","type":"string"},
+      {"name":"item","type":"string"},
+      {"name":"count","type":"f64"}
+    ]
+  },
+  "player_action": {
+    "pk": "owner",
+    "columns": [
+      {"name":"owner","type":"string"},
+      {"name":"readyTick","type":"f64"}
     ]
   },
   "world_clock": {

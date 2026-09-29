@@ -28,6 +28,7 @@ Tuning section `world` (`packages/content/tuning/world.ts`):
 | `moistureScale` | Size of the moisture blobs that choose a lowland biome. |
 | `lakeScale`, `lakeLevel` | Inland lakes. |
 | `spawnClearCells` | No blocking flora this close to the origin. |
+| `reachCells`, `hitCooldownTicks` | How far from a cell's centre you can hit or build on it, and the ticks between two hits. |
 
 Content sections:
 
@@ -35,8 +36,23 @@ Content sections:
 |---|---|---|
 | `biomes` | `id, name, role, moisture, walkable, tile, layer, flora, decals` | `role` is `water`, `shore`, `lowland` or `upland`; exactly the lowlands carry a `moisture` band. `layer` orders overlaps at borders. |
 | flora / decal entry | `id, chance` | One roll per cell; the chances in a list add up to at most 1. |
-| `props` | `id, sprite, blocks, footprint` | Flora props are 1×1. |
+| `props` | `id, sprite, blocks, footprint, harvest` | Flora props are 1×1. `harvest` (`item, hits, leaves`): each hit yields one `item`; after `hits` hits the prop becomes `leaves` (`''` = nothing). |
 | `landmarks` | `id, prop, cx, cy` | A prop at a fixed cell; `(cx, cy)` is its footprint's top-left. |
+
+Tables (the mutation overlay; base terrain is never stored):
+
+| Table | Shape | Index | Notes |
+|---|---|---|---|
+| `cell_delta` | `key, cx, cy, sector, prop, hits, owner` | `by_sector (sector)` | Public. How one cell differs from the generator: the prop standing there now (`''` none), hits it has taken, who placed it. |
+| `player_action` | `owner, readyTick` | — | Server-only. Each player's hit cooldown. |
+
+## Commands
+
+| Kind | Payload | Rules |
+|---|---|---|
+| `world.harvest` | `{cx, cy}` | The sender's player must be within `reachCells` of the cell's centre and off cooldown; the live cell must hold a harvestable prop not covered by a landmark. One hit: `hits + 1`, or on the last hit the prop becomes `leaves`. Emits `world.harvested` (items adds one `item`). Refusals: `not_joined`, `out_of_reach`, `cooldown`, `nothing_to_harvest`. |
+
+Reactions: `structure.built` places the structure's prop as a delta owned by the builder.
 
 ## Rules
 
@@ -56,6 +72,13 @@ Content sections:
    cells with no prop.
 4. `walkable` = the biome is walkable, no landmark covers the cell, and no
    blocking prop stands on it.
+5. The live world, `liveWorld(terrain, lookup)`, applies `cell_delta` rows on
+   top: the server looks them up in the store (`storeDeltas`), the client in
+   its mirrored rows. Movement collides with the live world on both, so a
+   felled pine opens a path and a campfire blocks one everywhere at once.
+6. `actionTarget` picks the cell a player acts on: the nearest wanted cell in
+   reach, preferring cells in front. The client aims with it; the server
+   re-checks reach and the cell itself.
 
 Noise (`noise.ts`) is integer-hash value noise, so every host computes the
 same bits.

@@ -34,6 +34,8 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import BuildReducer from "./build_reducer";
+import HarvestReducer from "./harvest_reducer";
 import JoinReducer from "./join_reducer";
 import MoveReducer from "./move_reducer";
 
@@ -41,14 +43,30 @@ import MoveReducer from "./move_reducer";
 
 // Import all table schema definitions
 import BuildInfoRow from "./build_info_table";
+import CellDeltaRow from "./cell_delta_table";
 import EntityRow from "./entity_table";
 import EntityPosRow from "./entity_pos_table";
+import InventoryRow from "./inventory_table";
 import WorldClockRow from "./world_clock_table";
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  cellDelta: __table({
+    name: 'cell_delta',
+    indexes: [
+      { accessor: 'key', name: 'cell_delta_key_idx_btree', algorithm: 'btree', columns: [
+        'key',
+      ] },
+      { accessor: 'by_sector', name: 'cell_delta_sector_idx_btree', algorithm: 'btree', columns: [
+        'sector',
+      ] },
+    ],
+    constraints: [
+      { name: 'cell_delta_key_key', constraint: 'unique', columns: ['key'] },
+    ],
+  }, CellDeltaRow),
   entity: __table({
     name: 'entity',
     indexes: [
@@ -77,6 +95,20 @@ const tablesSchema = __schema({
       { name: 'entity_pos_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EntityPosRow),
+  inventory: __table({
+    name: 'inventory',
+    indexes: [
+      { accessor: 'key', name: 'inventory_key_idx_btree', algorithm: 'btree', columns: [
+        'key',
+      ] },
+      { accessor: 'by_owner', name: 'inventory_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'inventory_key_key', constraint: 'unique', columns: ['key'] },
+    ],
+  }, InventoryRow),
   worldClock: __table({
     name: 'world_clock',
     indexes: [
@@ -99,6 +131,8 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("build", BuildReducer),
+  __reducerSchema("harvest", HarvestReducer),
   __reducerSchema("join", JoinReducer),
   __reducerSchema("move", MoveReducer),
 );
@@ -109,6 +143,8 @@ const proceduresSchema = __procedures(
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
   tables: typeof tablesSchema.schemaType.tables & {
+    /** @deprecated Use `cellDelta` instead. This alias will be removed in the next major version. */
+    readonly "cell_delta": Omit<typeof tablesSchema.schemaType.tables["cellDelta"], "accessorName"> & { readonly accessorName: "cell_delta" };
     /** @deprecated Use `entityPos` instead. This alias will be removed in the next major version. */
     readonly "entity_pos": Omit<typeof tablesSchema.schemaType.tables["entityPos"], "accessorName"> & { readonly accessorName: "entity_pos" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
@@ -133,6 +169,7 @@ const REMOTE_MODULE = {
 >;
 
 const tableAccessorAliases = {
+  "cell_delta": "cellDelta",
   "entity_pos": "entityPos",
   "world_clock": "worldClock",
   "build_info": "buildInfo",
@@ -156,6 +193,8 @@ function __withTableAccessorAliases<T extends object>(target: T, freeze = false)
 
 type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
+  /** @deprecated Use `cellDelta` instead. This alias will be removed in the next major version. */
+  readonly "cell_delta": __DbViewBase["cellDelta"];
   /** @deprecated Use `entityPos` instead. This alias will be removed in the next major version. */
   readonly "entity_pos": __DbViewBase["entityPos"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
@@ -166,6 +205,8 @@ export type DbView = __DbViewBase & {
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
+  /** @deprecated Use `cellDelta` instead. This alias will be removed in the next major version. */
+  readonly "cell_delta": __TablesBase["cellDelta"];
   /** @deprecated Use `entityPos` instead. This alias will be removed in the next major version. */
   readonly "entity_pos": __TablesBase["entityPos"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */

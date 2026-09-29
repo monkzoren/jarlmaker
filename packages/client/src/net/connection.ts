@@ -19,17 +19,34 @@ import { DbConnection, type ErrorContext } from './bindings/index.ts'
 import type { NetConfig } from './config.ts'
 import type { NonceSource } from './nonce.ts'
 import type { SnapshotStore } from './snapshot.ts'
+import type { WorldMirror } from './world.ts'
 import { createReconnector, type Link, type LinkHandlers, type PhaseInfo, type ReconnectKnobs, type Timers } from './reconnect.ts'
 import type { ConnState } from './status.ts'
 import { forgetRejectedToken, loadToken, saveToken, type TokenStorage } from './token.ts'
 
 // TODO(P1-017): whole tables are fine for P0; replace with the 3x3 sector
 // window (CLAUDE.md 3.6 rule 1) before anything else subscribes here.
-export const SUBSCRIPTIONS = ['SELECT * FROM entity', 'SELECT * FROM entity_pos', 'SELECT * FROM world_clock'] as const
+export const SUBSCRIPTIONS = [
+  'SELECT * FROM entity',
+  'SELECT * FROM entity_pos',
+  'SELECT * FROM world_clock',
+  'SELECT * FROM cell_delta',
+] as const
+
+/** The local player's inventory rows only. */
+export const inventoryQuery = (identity: string): string => `SELECT * FROM inventory WHERE owner = '${identity.replace(/[^0-9a-f]/gi, '')}'`
+
+/** A link that can also send the world commands. */
+export interface GameLink extends Link {
+  harvest(nonce: number, cx: number, cy: number): Promise<void>
+  build(nonce: number, def: string, cx: number, cy: number): Promise<void>
+}
 
 export interface NetDeps {
   readonly config: NetConfig
   readonly snapshot: SnapshotStore
+  /** Mirrors `cell_delta` and the local player's `inventory`. */
+  readonly world?: WorldMirror
   readonly nonces: NonceSource
   readonly storage: TokenStorage | undefined
   /** `tuning.net`: how long and how many commands to queue during a dropout. */
@@ -52,6 +69,10 @@ export interface Net {
    * when it refuses. Never queued: refused with `MoveOffline` while dropped (ADR 0008).
    */
   move(nonce: number, ix: number, iy: number): Promise<void>
+  /** `world.harvest`: queued across dropouts like every command but moves. */
+  harvest(cx: number, cy: number): Promise<void>
+  /** `structure.build`: queued across dropouts like every command but moves. */
+  build(def: string, cx: number, cy: number): Promise<void>
   disconnect(): void
 }
 
@@ -64,7 +85,7 @@ export function connect(deps: NetDeps): Net {
   }
   snapshot.onChange(report)
 
-  const reconnector = createReconnector({
+  const reconnector = createReconnector<GameLink>({
     transport: (h) => openLink(deps, h, (id) => (identity = id)),
     nonces,
     knobs: {
@@ -113,6 +134,14 @@ export function connect(deps: NetDeps): Net {
 
   return {
     move: (nonce, ix, iy) => reconnector.move(nonce, ix, iy),
+    harvest: (cx, cy) => {
+      const nonce = nonces.next()
+      return reconnector.command((l) => l.harvest(nonce, cx, cy))
+    },
+    build: (def, cx, cy) => {
+      const nonce = nonces.next()
+      return reconnector.command((l) => l.build(nonce, def, cx, cy))
+    },
     disconnect: () => {
       if (typeof window !== 'undefined') window.removeEventListener('online', nudge)
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible)
@@ -122,7 +151,7 @@ export function connect(deps: NetDeps): Net {
 }
 
 /** One socket: connect, subscribe, mirror rows, reconcile on apply. */
-function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => void): Link {
+function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => void): GameLink {
   const { config, snapshot, storage, onState } = deps
   // Row callbacks from a link the reconnector has abandoned must not touch the snapshot.
   let live = true
@@ -135,17 +164,19 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
       saveToken(storage, config.tokenKey, token)
       const identity = id.toHexString()
       setIdentity(identity)
+      deps.world?.setOwner(identity)
       onState({ kind: 'connected', identity })
       c.subscriptionBuilder()
         .onApplied(() => {
           if (!live) return
           snapshot.replace([...c.db.entity.iter()], [...c.db.entityPos.iter()])
+          deps.world?.replace([...c.db.cellDelta.iter()], [...c.db.inventory.iter()])
           h.ready(identity)
         })
         .onError((ctx: ErrorContext) => {
           if (live) h.lost(`subscription: ${message(ctx.event)}`)
         })
-        .subscribe([...SUBSCRIPTIONS])
+        .subscribe([...SUBSCRIPTIONS, inventoryQuery(identity)])
     })
     .onConnectError((_ctx, err) => {
       if (!live) return
@@ -202,12 +233,34 @@ function openLink(deps: NetDeps, h: LinkHandlers, setIdentity: (id: string) => v
       if (live) snapshot.setClock(row.tick)
     })
   }
+  const world = deps.world
+  if (world !== undefined) {
+    const delta = (row: Parameters<WorldMirror['upsertDelta']>[0]): void => {
+      if (!live) return
+      traffic()
+      world.upsertDelta(row)
+    }
+    conn.db.cellDelta.onInsert((_ctx, row) => delta(row))
+    conn.db.cellDelta.onUpdate((_ctx, _old, row) => delta(row))
+    conn.db.cellDelta.onDelete((_ctx, row) => {
+      if (live) world.deleteDelta(row.key)
+    })
+    const item = (row: Parameters<WorldMirror['upsertItem']>[0]): void => {
+      if (!live) return
+      traffic()
+      world.upsertItem(row)
+    }
+    conn.db.inventory.onInsert((_ctx, row) => item(row))
+    conn.db.inventory.onUpdate((_ctx, _old, row) => item(row))
+  }
   conn.db.worldClock.onInsert((_ctx, row) => clock(row))
   conn.db.worldClock.onUpdate((_ctx, _old, row) => clock(row))
 
   return {
     move: (nonce, ix, iy) => conn.reducers.move({ nonce, ix, iy }),
     join: (nonce) => conn.reducers.join({ nonce }),
+    harvest: (nonce, cx, cy) => conn.reducers.harvest({ nonce, cx, cy }),
+    build: (nonce, def, cx, cy) => conn.reducers.build({ nonce, def, cx, cy }),
     close: () => {
       live = false
       conn.disconnect()

@@ -18,6 +18,17 @@ export const BuildInfoRow = __t.object("BuildInfoRow", {
 });
 export type BuildInfoRow = __Infer<typeof BuildInfoRow>;
 
+export const CellDelta = __t.object("CellDelta", {
+  key: __t.string(),
+  cx: __t.f64(),
+  cy: __t.f64(),
+  sector: __t.string(),
+  prop: __t.string(),
+  hits: __t.f64(),
+  owner: __t.string(),
+});
+export type CellDelta = __Infer<typeof CellDelta>;
+
 export const CommandNonce = __t.object("CommandNonce", {
   sender: __t.string(),
   nonce: __t.f64(),
@@ -58,6 +69,20 @@ export const EntitySeq = __t.object("EntitySeq", {
   next: __t.i64(),
 });
 export type EntitySeq = __Infer<typeof EntitySeq>;
+
+export const Inventory = __t.object("Inventory", {
+  key: __t.string(),
+  owner: __t.string(),
+  item: __t.string(),
+  count: __t.f64(),
+});
+export type Inventory = __Infer<typeof Inventory>;
+
+export const PlayerAction = __t.object("PlayerAction", {
+  owner: __t.string(),
+  readyTick: __t.f64(),
+});
+export type PlayerAction = __Infer<typeof PlayerAction>;
 
 export const TickSchedule = __t.object("TickSchedule", {
   scheduledId: __t.u64(),

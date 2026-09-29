@@ -13,6 +13,8 @@
 // all call these, so terrain never ships over the wire (only mutations will).
 
 import type { Content, Game } from '../game.ts'
+import type { Store } from '../store/types.ts'
+import './tables.ts'
 import type { WorldView } from '../entity/world-view.ts'
 import { cellMemo } from './cache.ts'
 import { fbm, SALT, unit, hash3 } from './noise.ts'
@@ -29,12 +31,16 @@ export interface Cell {
   readonly walkable: boolean
   /** A stable hash for picking tile variants. */
   readonly variant: number
+  /** Covered by a landmark's footprint (never mutated). */
+  readonly covered: boolean
 }
 
 export interface Terrain extends WorldView {
   cell(cx: number, cy: number): Cell
   /** The raw elevation field (0 = waterline). */
   elevation(cx: number, cy: number): number
+  /** A prop def by id. */
+  prop(id: string): PropDef | undefined
 }
 
 type WorldContent = Pick<Content, 'biomes' | 'props' | 'landmarks'> & { readonly tuning: Pick<Content['tuning'], 'world'> }
@@ -124,12 +130,13 @@ export function createTerrain(content: WorldContent): Terrain {
     }
     const decal = prop === undefined && !covered.has(key) ? roll(biome.decals, unit(t.seed + SALT.decal, cx, cy))?.id : undefined
     const walkable = biome.walkable && !covered.has(key) && !(prop?.blocks ?? false)
-    return { biome, prop, decal, walkable, variant: hash3(t.seed + SALT.variant, cx, cy) }
+    return { biome, prop, decal, walkable, variant: hash3(t.seed + SALT.variant, cx, cy), covered: covered.has(key) }
   }
 
   return {
     cell,
     elevation,
+    prop: (id) => props.get(id),
     walkable: cellMemo((cx, cy) => cell(cx, cy).walkable),
   }
 }
@@ -144,4 +151,96 @@ export function terrainOf(game: Game): Terrain {
     terrains.set(game, terrain)
   }
   return terrain
+}
+
+/** How a `cell_delta` row changes a cell: the prop now standing there and its hits taken. */
+export interface Delta {
+  readonly prop: string
+  readonly hits: number
+  readonly owner: string
+}
+
+/** The delta for a cell, if any (the store on the server, the mirrored rows on the client). */
+export type DeltaLookup = (cx: number, cy: number) => Delta | undefined
+
+export const deltaKey = (cx: number, cy: number): string => `${cx},${cy}`
+
+/** The store's `cell_delta` rows as a lookup. */
+export function storeDeltas(store: Store): DeltaLookup {
+  return (cx, cy) => store.get('cell_delta', deltaKey(cx, cy))
+}
+
+/** A cell with its mutation applied. */
+export interface LiveCell extends Cell {
+  /** Hits the standing prop has taken. */
+  readonly hits: number
+  /** Who placed the standing prop (`''` if it grew there). */
+  readonly owner: string
+}
+
+/** The live world: generated terrain with `cell_delta` mutations on top. */
+export interface LiveWorld extends WorldView {
+  cell(cx: number, cy: number): LiveCell
+}
+
+/** Overlay `lookup`'s deltas on `terrain`. Cells without a delta cost one lookup. */
+export function liveWorld(terrain: Terrain, lookup: DeltaLookup): LiveWorld {
+  const cell = (cx: number, cy: number): LiveCell => {
+    const base = terrain.cell(cx, cy)
+    const d = lookup(cx, cy)
+    if (d === undefined) return { ...base, hits: 0, owner: '' }
+    const prop = d.prop === '' ? undefined : terrain.prop(d.prop)
+    const walkable = base.biome.walkable && !base.covered && !(prop?.blocks ?? false)
+    return { ...base, prop, decal: prop === undefined ? base.decal : undefined, walkable, hits: d.hits, owner: d.owner }
+  }
+  return {
+    cell,
+    walkable: (cx, cy) => (lookup(cx, cy) === undefined ? terrain.walkable(cx, cy) : cell(cx, cy).walkable),
+  }
+}
+
+/** Squared distance from (x, y) to the centre of cell (cx, cy). */
+export function reachSq(x: number, y: number, cx: number, cy: number): number {
+  const half = 1 / (1 + 1)
+  const dx = cx + half - x
+  const dy = cy + half - y
+  return dx * dx + dy * dy
+}
+
+/**
+ * The cell a player at (x, y) facing `facing` (radians) acts on: the nearest
+ * cell within `reach` that `wanted` accepts, preferring cells in front.
+ * The client highlights it and sends it; the server re-checks reach and the
+ * cell itself, so this is a convenience, not a rule the server trusts.
+ */
+export function actionTarget(
+  world: LiveWorld,
+  x: number,
+  y: number,
+  facing: number,
+  reach: number,
+  wanted: (c: LiveCell) => boolean,
+): { readonly cx: number; readonly cy: number } | undefined {
+  const fx = Math.cos(facing)
+  const fy = Math.sin(facing)
+  const ox = Math.floor(x)
+  const oy = Math.floor(y)
+  const r = Math.ceil(reach)
+  let best: { cx: number; cy: number } | undefined
+  let bestScore = Infinity
+  for (let cy = oy - r; cy <= oy + r; cy++)
+    for (let cx = ox - r; cx <= ox + r; cx++) {
+      const d2 = reachSq(x, y, cx, cy)
+      if (d2 > reach * reach) continue
+      if (!wanted(world.cell(cx, cy))) continue
+      const half = 1 / (1 + 1)
+      const dot = (cx + half - x) * fx + (cy + half - y) * fy
+      // Behind you costs a full cell of distance; in front is preferred.
+      const score = Math.sqrt(d2) - dot
+      if (score < bestScore) {
+        bestScore = score
+        best = { cx, cy }
+      }
+    }
+  return best
 }

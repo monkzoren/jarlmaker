@@ -22,7 +22,8 @@ export const biomes: BiomeDef[] = [
     walkable: true,
     tile: 'sand',
     layer: 1,
-    flora: [{ id: 'rock.small', chance: 0.02 }],
+    // Rocks wash up often enough that the first campfire's stone is a few steps away.
+    flora: [{ id: 'rock.small', chance: 0.06 }],
     decals: [
       { id: 'decal.driftwood', chance: 0.03 },
       { id: 'decal.shells', chance: 0.05 },
@@ -57,7 +58,7 @@ export const biomes: BiomeDef[] = [
     flora: [
       { id: 'pine', chance: 0.02 },
       { id: 'bush.juniper', chance: 0.02 },
-      { id: 'rock.small', chance: 0.01 },
+      { id: 'rock.small', chance: 0.03 },
     ],
     decals: [
       { id: 'decal.flowers', chance: 0.08 },

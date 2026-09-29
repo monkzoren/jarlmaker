@@ -9,7 +9,8 @@
  * (`terrainOf`), so it is drawn and collided locally with nothing on the wire.
  */
 import { content } from '@bastion/content'
-import { createGame, MS_PER_SECOND, stepKnobs, terrainOf } from '@bastion/core'
+import { createGame, liveWorld, MS_PER_SECOND, stepKnobs, terrainOf } from '@bastion/core'
+import { createActions } from './input/actions.ts'
 import { createInput } from './input/index.ts'
 import {
   connect,
@@ -18,11 +19,13 @@ import {
   createPredictor,
   createSnapshotStore,
   createView,
+  createWorldMirror,
   readNetConfig,
   statusText,
 } from './net/index.ts'
 import { createRenderer } from './render/index.ts'
 import { createConnectionHud } from './ui/connection/index.ts'
+import { createHud } from './ui/hud/index.ts'
 
 const host = document.getElementById('game')
 if (!host) throw new Error('#game host element missing')
@@ -41,13 +44,18 @@ const dtMs = MS_PER_SECOND / net.tickHz
 
 const connHud = createConnectionHud()
 const terrain = terrainOf(game)
-const renderer = await createRenderer(host, { terrain, chunkSize: content.tuning.world.chunkSize, seed: content.tuning.world.seed })
+// The server's mutations (felled pines, campfires) on top of the generated
+// terrain: drawn, collided and targeted with core's own rules.
+const mirror = createWorldMirror()
+const world = liveWorld(terrain, mirror.lookup)
+const renderer = await createRenderer(host, { terrain, world, chunkSize: content.tuning.world.chunkSize, seed: content.tuning.world.seed })
 const snapshot = createSnapshotStore()
 const nonces = createNonceSource()
 
 const connection = connect({
   config: readNetConfig(import.meta.env, window.location),
   snapshot,
+  world: mirror,
   nonces,
   storage: safeLocalStorage(),
   queue: { seconds: net.reconnectQueueSeconds, max: net.reconnectQueueMax },
@@ -77,7 +85,7 @@ const play = createPlay({
   predictor: createPredictor({
     knobs: stepKnobs(game),
     dtMs,
-    world: terrain,
+    world,
     maxTicks: net.reconnectQueueSeconds * net.tickHz,
   }),
   view: createView({
@@ -93,10 +101,59 @@ const play = createPlay({
 Object.assign(window, { bastionProbe: { drawn: () => play.drawn() } })
 
 createInput(play.sink, { knobs: { tickHz: net.tickHz, deadZone: input.deadZone, stickRadiusPx: input.stickRadiusPx } })
+
+// The first survival loop: hit pines and rocks for wood and stone, build a campfire.
+const campfire = content.structures.find((s) => s.id === 'campfire')
+if (campfire === undefined) throw new Error('content has no campfire structure')
+const itemName = new Map(content.items.map((i) => [i.id, i.name]))
+const actions = createActions({
+  world,
+  structure: campfire,
+  reachCells: content.tuning.world.reachCells,
+  swingMs: content.tuning.world.hitCooldownTicks * dtMs + dtMs / 2,
+  pose: () => play.pose(),
+  count: (item) => mirror.count(item),
+  harvest: (cx, cy) => connection.harvest(cx, cy),
+  build: (def, cx, cy) => connection.build(def, cx, cy),
+  onTarget: (t) => renderer.setTarget(t),
+  onSwing: (cx, cy) => {
+    const id = play.ownId()
+    if (id !== undefined) renderer.swing(id, cx, cy)
+  },
+  onBuildMode: (on) => survivalHud.setBuildMode(on),
+  onRefused: (why) => survivalHud.say(why),
+})
+const survivalHud = createHud({
+  items: content.items,
+  structure: campfire,
+  onActDown: () => actions.actDown(),
+  onActUp: () => actions.actUp(),
+  onBuild: () => actions.toggleBuild(),
+})
+const refreshHud = (): void => survivalHud.setItems(mirror.items(), Object.entries(campfire.cost).every(([i, n]) => mirror.count(i) >= n))
+mirror.onChange((c) => {
+  if (c.kind === 'delta') {
+    const base = terrain.cell(c.row.cx, c.row.cy).prop?.id
+    renderer.cellChanged({
+      cx: c.row.cx,
+      cy: c.row.cy,
+      before: c.quiet ? c.row.prop || undefined : c.prev === undefined ? base : c.prev.prop || undefined,
+      after: c.row.prop || undefined,
+      hitsBefore: c.quiet ? c.row.hits : (c.prev?.hits ?? 0),
+      hitsAfter: c.row.hits,
+    })
+    return
+  }
+  refreshHud()
+  const id = play.ownId()
+  if (!c.quiet && c.count > c.prev && id !== undefined) renderer.floatFrom(id, `+${c.count - c.prev} ${itemName.get(c.item) ?? c.item}`, 0xf4ead2)
+})
+refreshHud()
 setInterval(() => play.tick(), dtMs)
 
 const frame = (): void => {
   renderer.setEntities(play.frame())
+  actions.frame()
   requestAnimationFrame(frame)
 }
 requestAnimationFrame(frame)

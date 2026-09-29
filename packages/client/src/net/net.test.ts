@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TILE_PX } from '../render/zoom.ts'
-import { SUBSCRIPTIONS } from './connection.ts'
+import { inventoryQuery, SUBSCRIPTIONS } from './connection.ts'
 import { DEFAULT_MODULE, DEFAULT_PORT, readNetConfig } from './config.ts'
 import { createNonceSource } from './nonce.ts'
 import { createSnapshotStore } from './snapshot.ts'
@@ -146,7 +146,12 @@ describe('statusText', () => {
 })
 
 describe('subscriptions', () => {
-  it('cover the public entity tables and the world clock (whole tables until P1-017)', () => {
-    expect(SUBSCRIPTIONS).toEqual(['SELECT * FROM entity', 'SELECT * FROM entity_pos', 'SELECT * FROM world_clock'])
+  it('cover the public entity tables, the world clock and the cell deltas (whole tables until P1-017)', () => {
+    expect(SUBSCRIPTIONS).toEqual(['SELECT * FROM entity', 'SELECT * FROM entity_pos', 'SELECT * FROM world_clock', 'SELECT * FROM cell_delta'])
+  })
+
+  it('reads only the local player\'s inventory, and cannot be injected through the identity', () => {
+    expect(inventoryQuery('c200ab')).toBe("SELECT * FROM inventory WHERE owner = 'c200ab'")
+    expect(inventoryQuery("x' OR '1'='1")).toBe("SELECT * FROM inventory WHERE owner = '11'")
   })
 })

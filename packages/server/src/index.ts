@@ -9,6 +9,8 @@ import spacetimedb from './schema.ts'
 export default spacetimedb
 export { join } from './reducers/join.ts'
 export { move } from './reducers/move.ts'
+export { harvest } from './reducers/harvest.ts'
+export { build } from './reducers/build.ts'
 export { init, tick } from './tick.ts'
 
 // `build_info`: the module's BUILD_ID (CLAUDE.md 3.6 rule 6), stamped into

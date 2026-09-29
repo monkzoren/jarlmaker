@@ -4,3 +4,6 @@
 export * from './schema.ts'
 export * from './noise.ts'
 export * from './rules.ts'
+export * from './tables.ts'
+export * from './commands.ts'
+import './events.ts'
