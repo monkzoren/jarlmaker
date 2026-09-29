@@ -5,15 +5,22 @@
 
 /** Cells remembered before the memo is cleared. */
 const MAX_CELLS = 1 << 16
-/** Offset and span that pack a cell into one number while |c| < 2^20. */
-const OFFSET = 1 << 20
-const SPAN = 1 << 21
+/** Cells within this distance of the origin pack into one small integer key. */
+const LIMIT = 1 << 15
+
+/** `(cx, cy)` packed into one int32 (a fast Map key), for |c| < 2^15. */
+export function packCell(cx: number, cy: number): number {
+  return (cx << 16) | (cy & 0xffff)
+}
+
+/** In range for `packCell`. */
+export const packable = (cx: number, cy: number): boolean => cx > -LIMIT && cx < LIMIT && cy > -LIMIT && cy < LIMIT
 
 export function cellMemo<T>(compute: (cx: number, cy: number) => T): (cx: number, cy: number) => T {
   const memo = new Map<number, T>()
   return (cx, cy) => {
-    if (cx <= -OFFSET || cx >= OFFSET || cy <= -OFFSET || cy >= OFFSET) return compute(cx, cy)
-    const key = (cx + OFFSET) * SPAN + (cy + OFFSET)
+    if (!packable(cx, cy)) return compute(cx, cy)
+    const key = packCell(cx, cy)
     let v = memo.get(key)
     if (v === undefined) {
       if (memo.size >= MAX_CELLS) memo.clear()

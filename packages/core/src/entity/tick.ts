@@ -23,7 +23,7 @@ export function stepKnobs(game: Game): StepKnobs {
  * Move every entity with input or velocity by `dtMs`. `tick` (the world
  * clock's current tick, P0-025) stamps the events.
  */
-export function moveEntities(store: Store, game: Game, dtMs: number, tick: number, world: WorldView = liveWorld(terrainOf(game), storeDeltas(store))): void {
+export function moveEntities(store: Store, game: Game, dtMs: number, tick: number, world: WorldView = liveWorld(terrainOf(game), storeDeltas(store, game.content.tuning.world.sectorSize))): void {
   const knobs = stepKnobs(game)
   // Materialized first: the loop flips rows out of the index it iterates.
   for (const input of [...store.byIndex('entity_input', 'by_moving', true)]) {
