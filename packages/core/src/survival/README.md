@@ -46,8 +46,9 @@ emitted here; the entity system moves the player back to the spawn.
 - `stepVitals(v, dt, light, heat)`: warmth moves by the weather (blended by
   daylight) plus heat; food drains; health falls at zero warmth, else rises
   while fed. Death at zero health: fresh meters (food kept), `player.died`.
-- `heatAt` (world) sums `warmthPerSec` of placed lights within their radius:
-  lookups on `cell_delta`, never terrain generation.
+- `heatAt` (world) sums `warmthPerSec` of placed lights within their radius,
+  reading the `cell_delta` rows of the one to four sectors in range through
+  the `by_sector` index: no per-cell sweep, never terrain generation.
 
 ## Tick
 

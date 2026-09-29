@@ -245,24 +245,39 @@ export function actionTarget(
   return best
 }
 
+/** A `cell_delta` row as `heatAt` needs it. */
+export interface PlacedDelta extends Delta {
+  readonly cx: number
+  readonly cy: number
+}
+
 /**
  * Warmth per second at (x, y) from placed light sources (campfires) within
- * `maxRadius` cells. Only `cell_delta` props are checked: every heat source is
- * something a player built, so this costs lookups, never terrain generation.
+ * `maxRadius` cells. Reads the deltas of the one to four sectors the radius
+ * touches (`bySector`, an index read on the server), so it costs a handful of
+ * index lookups per player, never terrain generation or a per-cell sweep.
  */
-export function heatAt(terrain: Terrain, lookup: DeltaLookup, x: number, y: number, maxRadius: number): number {
-  const r = Math.ceil(maxRadius)
-  const ox = Math.floor(x)
-  const oy = Math.floor(y)
+export function heatAt(
+  terrain: Terrain,
+  bySector: (sector: string) => Iterable<PlacedDelta>,
+  x: number,
+  y: number,
+  maxRadius: number,
+  sectorSize: number,
+): number {
+  const s0x = Math.floor((x - maxRadius) / sectorSize)
+  const s1x = Math.floor((x + maxRadius) / sectorSize)
+  const s0y = Math.floor((y - maxRadius) / sectorSize)
+  const s1y = Math.floor((y + maxRadius) / sectorSize)
   let heat = 0
-  for (let cy = oy - r; cy <= oy + r; cy++)
-    for (let cx = ox - r; cx <= ox + r; cx++) {
-      const d = lookup(cx, cy)
-      if (d === undefined || d.prop === '') continue
-      const light = terrain.prop(d.prop)?.light
-      if (light === undefined) continue
-      if (reachSq(x, y, cx, cy) <= light.radius * light.radius) heat += light.warmthPerSec
-    }
+  for (let sy = s0y; sy <= s1y; sy++)
+    for (let sx = s0x; sx <= s1x; sx++)
+      for (const d of bySector(`${sx},${sy}`)) {
+        if (d.prop === '') continue
+        const light = terrain.prop(d.prop)?.light
+        if (light === undefined) continue
+        if (reachSq(x, y, d.cx, d.cy) <= light.radius * light.radius) heat += light.warmthPerSec
+      }
   return heat
 }
 

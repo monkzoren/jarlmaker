@@ -8,7 +8,7 @@ import { playerOf } from '../entity/commands.ts'
 import { MS_PER_SECOND } from '../entity/schema.ts'
 import type { Store } from '../store/types.ts'
 import type { SystemTick, TickContext } from '../tick.ts'
-import { heatAt, maxLightRadius, storeDeltas, terrainOf } from '../world/rules.ts'
+import { heatAt, maxLightRadius, terrainOf, type PlacedDelta } from '../world/rules.ts'
 import './events.ts'
 import { daylight, freshVitals, stepVitals } from './rules.ts'
 import './schema.ts'
@@ -26,12 +26,13 @@ export function updateVitals(store: Store, game: Game, tick: number, dtMs: numbe
   const dt = (dtMs * t.vitalsBuckets) / MS_PER_SECOND
   const light = daylight(tick, t)
   const terrain = terrainOf(game)
-  const lookup = storeDeltas(store)
+  const { sectorSize } = game.content.tuning.world
+  const bySector = (sector: string): Iterable<PlacedDelta> => store.byIndex('cell_delta', 'by_sector', sector)
   for (const row of [...store.byIndex('player_vitals', 'by_bucket', tick % t.vitalsBuckets)]) {
     const player = playerOf(store, row.owner)
     const pos = player === undefined ? undefined : store.get('entity_pos', player.id)
     if (pos === undefined) continue
-    const heat = radius > 0 ? heatAt(terrain, lookup, pos.x, pos.y, radius) : 0
+    const heat = radius > 0 ? heatAt(terrain, bySector, pos.x, pos.y, radius, sectorSize) : 0
     const { vitals, died } = stepVitals(row, dt, light, heat, t)
     const next = died ? freshVitals(t, vitals.food) : vitals
     store.update('player_vitals', { ...row, ...next })
