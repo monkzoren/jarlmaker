@@ -7,7 +7,9 @@
 
 import { z } from 'zod'
 import { reject } from '../commands.ts'
-import { registerCommand, type CommandContext } from '../registry.ts'
+import { onEvent, registerCommand, type CommandContext } from '../registry.ts'
+import '../survival/events.ts'
+import './events.ts'
 import type { Row, Store } from '../store/types.ts'
 import { clampInput, sectorOf } from './rules.ts'
 import './tables.ts'
@@ -46,7 +48,7 @@ export function nextEntityId(store: Store): bigint {
 }
 
 export function joinPlayer(ctx: CommandContext): void {
-  const { store, sender, game } = ctx
+  const { store, sender, game, tick } = ctx
   if (playerOf(store, sender) !== undefined) return
   const id = nextEntityId(store)
   store.insert('entity', { id, kind: 'player', def: PLAYER_DEF, owner: sender, level: 1, faction: PLAYER_FACTION })
@@ -58,7 +60,21 @@ export function joinPlayer(ctx: CommandContext): void {
     facing: 0,
     sector: sectorOf(SPAWN.x, SPAWN.y, game.content.tuning.world.sectorSize),
   })
+  store.emit({ kind: 'player.joined', tick, owner: sender })
 }
+
+// A player who died (the survival system decides) wakes on the beach again.
+onEvent('player.died', (ctx, e) => {
+  const player = playerOf(ctx.store, e.owner)
+  if (player === undefined) return
+  const pos = ctx.store.get('entity_pos', player.id)
+  if (pos === undefined) return
+  const sector = sectorOf(SPAWN.x, SPAWN.y, ctx.game.content.tuning.world.sectorSize)
+  ctx.store.update('entity_pos', { ...pos, ...SPAWN, vx: 0, vy: 0, sector })
+  if (sector !== pos.sector) ctx.store.emit({ kind: 'entity.sector_changed', tick: ctx.tick, entity: player.id, from: pos.sector, to: sector })
+  const input = ctx.store.get('entity_input', player.id)
+  if (input !== undefined) ctx.store.update('entity_input', { ...input, ix: 0, iy: 0, moving: true })
+})
 
 registerCommand({
   kind: 'player.join',

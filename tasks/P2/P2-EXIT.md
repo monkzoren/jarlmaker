@@ -4,7 +4,7 @@ title: "P2 exit — Survival, items, crafting"
 phase: P2
 system: repo
 lane: repo
-depends_on: [P2-001, P2-002, P2-003, P2-010, P2-011, P2-012, P2-013, P2-014, P2-015, P2-016, P2-017]
+depends_on: [P2-001, P2-002, P2-003, P2-010, P2-011, P2-012, P2-013, P2-014, P2-015, P2-016, P2-017, P2-018]
 size: M
 status: todo
 owner: ""

@@ -36,7 +36,7 @@ Content sections:
 |---|---|---|
 | `biomes` | `id, name, role, moisture, walkable, tile, layer, flora, decals` | `role` is `water`, `shore`, `lowland` or `upland`; exactly the lowlands carry a `moisture` band. `layer` orders overlaps at borders. |
 | flora / decal entry | `id, chance` | One roll per cell; the chances in a list add up to at most 1. |
-| `props` | `id, sprite, blocks, footprint, harvest` | Flora props are 1×1. `harvest` (`item, hits, leaves`): each hit yields one `item`; after `hits` hits the prop becomes `leaves` (`''` = nothing). |
+| `props` | `id, sprite, blocks, footprint, harvest, light` | Flora props are 1×1. `harvest` (`item, hits, leaves`): each hit yields one `item`; after `hits` hits the prop becomes `leaves` (`''` = nothing). `light` (`radius, warmthPerSec`): a placed prop that lights and warms its surroundings (survival). |
 | `landmarks` | `id, prop, cx, cy` | A prop at a fixed cell; `(cx, cy)` is its footprint's top-left. |
 
 Tables (the mutation overlay; base terrain is never stored):

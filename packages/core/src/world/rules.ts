@@ -244,3 +244,29 @@ export function actionTarget(
     }
   return best
 }
+
+/**
+ * Warmth per second at (x, y) from placed light sources (campfires) within
+ * `maxRadius` cells. Only `cell_delta` props are checked: every heat source is
+ * something a player built, so this costs lookups, never terrain generation.
+ */
+export function heatAt(terrain: Terrain, lookup: DeltaLookup, x: number, y: number, maxRadius: number): number {
+  const r = Math.ceil(maxRadius)
+  const ox = Math.floor(x)
+  const oy = Math.floor(y)
+  let heat = 0
+  for (let cy = oy - r; cy <= oy + r; cy++)
+    for (let cx = ox - r; cx <= ox + r; cx++) {
+      const d = lookup(cx, cy)
+      if (d === undefined || d.prop === '') continue
+      const light = terrain.prop(d.prop)?.light
+      if (light === undefined) continue
+      if (reachSq(x, y, cx, cy) <= light.radius * light.radius) heat += light.warmthPerSec
+    }
+  return heat
+}
+
+/** The largest light radius among the content's props (how far `heatAt` must look). */
+export function maxLightRadius(props: readonly PropDef[]): number {
+  return props.reduce((m, p) => Math.max(m, p.light?.radius ?? 0), 0)
+}

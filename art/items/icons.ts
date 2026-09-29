@@ -1,5 +1,6 @@
 /**
- * 16x16 icons for items (by `ItemDef.icon`) and HUD buttons (`axe`).
+ * 16x16 icons for items (by `ItemDef.icon`), HUD buttons (`axe`) and meters
+ * (`heart`, `warmth`; food shows `berries`).
  */
 import { WORLD_PALETTE } from '../palette.ts'
 import type { Picture } from '../types.ts'
@@ -80,6 +81,84 @@ export const ICONS: Readonly<Record<string, Picture>> = {
         '..KUTK..........',
         '...KK...........',
         '................',
+      ],
+    ],
+  },
+  'berries': {
+    id: 'berries',
+    width: 16,
+    height: 16,
+    palette: WORLD_PALETTE,
+    frames: [
+      [
+        '................',
+        '................',
+        '.........KKK....',
+        '.....KK.KTllK...',
+        '....KllKTKmKmK..',
+        '...KmKmKTKK.K...',
+        '....K.KKTK......',
+        '.....KKKeFK.....',
+        '....KeFKFcKK....',
+        '....KFcKKKeFK...',
+        '....KKKeFKFcK...',
+        '...KeFKFcKKK....',
+        '...KFcKKKeFK....',
+        '....KKeFKFcK....',
+        '.....KFcKKK.....',
+        '......KK........',
+      ],
+    ],
+  },
+  'heart': {
+    id: 'heart',
+    width: 16,
+    height: 16,
+    palette: WORLD_PALETTE,
+    frames: [
+      [
+        '................',
+        '................',
+        '...KKK....KKK...',
+        '..KDDDK..KDDDK..',
+        '.KDCDDDKKDDDDDK.',
+        '.KDCDDDDDDDDDDK.',
+        '.KDDDDDDDDDDDDK.',
+        '.KDDDDDDDDDDDDK.',
+        '..KDDDDDDDDDDK..',
+        '...KDDDDDDDDK...',
+        '....KDDDDDDK....',
+        '.....KDDDDK.....',
+        '......KDDK......',
+        '.......KK.......',
+        '................',
+        '................',
+      ],
+    ],
+  },
+  'warmth': {
+    id: 'warmth',
+    width: 16,
+    height: 16,
+    palette: WORLD_PALETTE,
+    frames: [
+      [
+        '................',
+        '................',
+        '........K.......',
+        '......KKOK......',
+        '.....KOOOK......',
+        '.....KOOOK......',
+        '.....KOOOKK.....',
+        '.....KONNOOK....',
+        '....KKONNOOK....',
+        '...KOONNNNOK....',
+        '...KOONNNNOK....',
+        '...KOOMMMMOKK...',
+        '...KONMMMMNOOK..',
+        '...KONMMMMNOOK..',
+        '...KONMMMMNOOK..',
+        '....KKKKKKKKK...',
       ],
     ],
   },

@@ -3,4 +3,5 @@
 export { input } from './input.ts'
 export { movement } from './movement.ts'
 export { net } from './net.ts'
+export { survival } from './survival.ts'
 export { world } from './world.ts'

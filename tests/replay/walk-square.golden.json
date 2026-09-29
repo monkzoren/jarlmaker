@@ -15,11 +15,15 @@
     "entity_seq": [
       {"name":"entity","next":"2n"}
     ],
+    "player_vitals": [
+      {"bucket":0,"food":99.24999999999997,"hp":100,"owner":"alice","warmth":100}
+    ],
     "world_clock": [
       {"id":"world","tick":50}
     ]
   },
   "events": [
+    {"kind":"player.joined","owner":"alice","tick":0},
     {"entity":"1n","from":"0,0","kind":"entity.sector_changed","tick":1,"to":"-1,0"},
     {"entity":"1n","from":"-1,0","kind":"entity.sector_changed","tick":11,"to":"-1,-1"},
     {"entity":"1n","from":"-1,-1","kind":"entity.sector_changed","tick":31,"to":"0,-1"},

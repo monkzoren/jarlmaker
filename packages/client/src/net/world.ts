@@ -35,6 +35,20 @@ export interface ItemChange {
   readonly quiet: boolean
 }
 
+export interface VitalsRow {
+  readonly owner: string
+  readonly hp: number
+  readonly warmth: number
+  readonly food: number
+}
+
+export interface VitalsChange {
+  readonly kind: 'vitals'
+  readonly vitals: VitalsRow
+  readonly prev: VitalsRow | undefined
+  readonly quiet: boolean
+}
+
 export interface WorldMirror {
   readonly lookup: DeltaLookup
   upsertDelta(row: DeltaRow): void
@@ -45,19 +59,25 @@ export interface WorldMirror {
   count(item: string): number
   /** Every held item, in the order they were first seen. */
   items(): readonly { readonly item: string; readonly count: number }[]
+  /** The local player's meters, once their row has arrived. */
+  upsertVitals(row: VitalsRow): void
+  readonly vitals: VitalsRow | undefined
   /** Make the rows exactly these (a fresh subscription). Changes found are reported. */
-  replace(deltas: Iterable<DeltaRow>, inventory: Iterable<InventoryRow>): void
+  replace(deltas: Iterable<DeltaRow>, inventory: Iterable<InventoryRow>, vitals?: Iterable<VitalsRow>): void
   /** Called for every change; returns an unsubscribe. */
-  onChange(cb: (c: WorldChange | ItemChange) => void): () => void
+  onChange(cb: (c: MirrorChange) => void): () => void
 }
+
+export type MirrorChange = WorldChange | ItemChange | VitalsChange
 
 export function createWorldMirror(): WorldMirror {
   const deltas = new Map<string, Delta>()
   const counts = new Map<string, number>()
-  const listeners = new Set<(c: WorldChange | ItemChange) => void>()
+  const listeners = new Set<(c: MirrorChange) => void>()
   let owner = ''
   let quiet = false
-  const emit = (c: WorldChange | ItemChange): void => {
+  let vitals: VitalsRow | undefined
+  const emit = (c: MirrorChange): void => {
     for (const cb of listeners) cb(c)
   }
   const upsertDelta = (row: DeltaRow): void => {
@@ -73,8 +93,18 @@ export function createWorldMirror(): WorldMirror {
     counts.set(row.item, row.count)
     emit({ kind: 'item', item: row.item, count: row.count, prev, quiet })
   }
+  const upsertVitals = (row: VitalsRow): void => {
+    if (owner === '' || row.owner !== owner) return
+    const prev = vitals
+    vitals = row
+    emit({ kind: 'vitals', vitals: row, prev, quiet })
+  }
   return {
     lookup: (cx, cy) => deltas.get(deltaKey(cx, cy)),
+    upsertVitals,
+    get vitals() {
+      return vitals
+    },
     upsertDelta,
     deleteDelta(key) {
       deltas.delete(key)
@@ -83,15 +113,17 @@ export function createWorldMirror(): WorldMirror {
       if (o === owner) return
       owner = o
       counts.clear()
+      vitals = undefined
     },
     upsertItem,
     count: (item) => counts.get(item) ?? 0,
     items: () => [...counts].map(([item, count]) => ({ item, count })),
-    replace(ds, inv) {
+    replace(ds, inv, vs = []) {
       quiet = true
       try {
         for (const d of ds) upsertDelta(d)
         for (const i of inv) upsertItem(i)
+        for (const v of vs) upsertVitals(v)
       } finally {
         quiet = false
       }

@@ -9,14 +9,16 @@ you will see it in package names (`@bastion/*`), table names, storage keys
 and the database name. "Jarlmaker" only appears where a player reads it.
 
 You wash up on a generated shore beside your wrecked longship. Chop pines
-and break rocks for wood and stone, and build a campfire. Everything runs
+and break rocks for wood and stone, pick juniper berries, build a campfire,
+and get through the night: a 6-minute day brings a cold dark night where
+only fires keep you warm. Everything runs
 through the server, with client-side prediction and silent reconnect. The
 design and every rule are in [`CLAUDE.md`](CLAUDE.md).
 
 **Controls:** WASD or arrows to walk; **Space** (or E) to chop what you face,
 hold to keep swinging; **B** to toggle build mode, then Space to place a
-campfire (5 wood, 3 stone); Esc leaves build mode. On a phone: drag anywhere
-to walk, and use the axe and campfire buttons.
+campfire (5 wood, 3 stone); Esc leaves build mode; **F** eats berries. On a phone: drag anywhere
+to walk, use the axe and campfire buttons, and tap the berries to eat.
 
 ## Prerequisites
 

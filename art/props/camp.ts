@@ -1,5 +1,6 @@
 /**
- * Props the player makes: the stump a felled pine leaves, and the campfire
+ * Props the player makes: the stump a felled pine leaves, the bare bush a
+ * picked juniper leaves, and the campfire
  * (3 frames of flame, played in a loop by the renderer). Anchored bottom-centre
  * on their cell like every prop.
  */
@@ -116,6 +117,32 @@ export const CAMP_ART: Readonly<Record<string, Picture>> = {
         '.KxxwwKKKKwwxxK.',
         '..KKxxKwwKxxKK..',
         '....KKKxxKKK....',
+      ],
+    ],
+  },
+  'bush.bare': {
+    id: 'bush.bare',
+    width: 16,
+    height: 16,
+    palette: WORLD_PALETTE,
+    frames: [
+      [
+        '................',
+        '................',
+        '................',
+        '................',
+        '................',
+        '.....KKKKKK.....',
+        '...KKllllljKK...',
+        '..KlkllljjjjjK..',
+        '.KllllmkjjjjjjK.',
+        '.KllllkjjjjmjmK.',
+        '.KllljjjjkjjmmK.',
+        '.KljjjjjjmmmmmK.',
+        '.KjjjjjjjmmmmmK.',
+        '..KmmkmmmmmmmK..',
+        '...KKmmmmmmKK...',
+        '.....KKKKKK.....',
       ],
     ],
   },

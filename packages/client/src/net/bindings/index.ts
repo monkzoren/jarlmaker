@@ -35,6 +35,7 @@ import {
 
 // Import all reducer arg schemas
 import BuildReducer from "./build_reducer";
+import EatReducer from "./eat_reducer";
 import HarvestReducer from "./harvest_reducer";
 import JoinReducer from "./join_reducer";
 import MoveReducer from "./move_reducer";
@@ -47,6 +48,7 @@ import CellDeltaRow from "./cell_delta_table";
 import EntityRow from "./entity_table";
 import EntityPosRow from "./entity_pos_table";
 import InventoryRow from "./inventory_table";
+import PlayerVitalsRow from "./player_vitals_table";
 import WorldClockRow from "./world_clock_table";
 
 /** Type-only namespace exports for generated type groups. */
@@ -109,6 +111,20 @@ const tablesSchema = __schema({
       { name: 'inventory_key_key', constraint: 'unique', columns: ['key'] },
     ],
   }, InventoryRow),
+  playerVitals: __table({
+    name: 'player_vitals',
+    indexes: [
+      { accessor: 'by_bucket', name: 'player_vitals_bucket_idx_btree', algorithm: 'btree', columns: [
+        'bucket',
+      ] },
+      { accessor: 'owner', name: 'player_vitals_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_vitals_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, PlayerVitalsRow),
   worldClock: __table({
     name: 'world_clock',
     indexes: [
@@ -132,6 +148,7 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("build", BuildReducer),
+  __reducerSchema("eat", EatReducer),
   __reducerSchema("harvest", HarvestReducer),
   __reducerSchema("join", JoinReducer),
   __reducerSchema("move", MoveReducer),
@@ -147,6 +164,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "cell_delta": Omit<typeof tablesSchema.schemaType.tables["cellDelta"], "accessorName"> & { readonly accessorName: "cell_delta" };
     /** @deprecated Use `entityPos` instead. This alias will be removed in the next major version. */
     readonly "entity_pos": Omit<typeof tablesSchema.schemaType.tables["entityPos"], "accessorName"> & { readonly accessorName: "entity_pos" };
+    /** @deprecated Use `playerVitals` instead. This alias will be removed in the next major version. */
+    readonly "player_vitals": Omit<typeof tablesSchema.schemaType.tables["playerVitals"], "accessorName"> & { readonly accessorName: "player_vitals" };
     /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
     readonly "world_clock": Omit<typeof tablesSchema.schemaType.tables["worldClock"], "accessorName"> & { readonly accessorName: "world_clock" };
     /** @deprecated Use `buildInfo` instead. This alias will be removed in the next major version. */
@@ -171,6 +190,7 @@ const REMOTE_MODULE = {
 const tableAccessorAliases = {
   "cell_delta": "cellDelta",
   "entity_pos": "entityPos",
+  "player_vitals": "playerVitals",
   "world_clock": "worldClock",
   "build_info": "buildInfo",
 } as const;
@@ -197,6 +217,8 @@ export type DbView = __DbViewBase & {
   readonly "cell_delta": __DbViewBase["cellDelta"];
   /** @deprecated Use `entityPos` instead. This alias will be removed in the next major version. */
   readonly "entity_pos": __DbViewBase["entityPos"];
+  /** @deprecated Use `playerVitals` instead. This alias will be removed in the next major version. */
+  readonly "player_vitals": __DbViewBase["playerVitals"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __DbViewBase["worldClock"];
   /** @deprecated Use `buildInfo` instead. This alias will be removed in the next major version. */
@@ -209,6 +231,8 @@ export type Tables = __TablesBase & {
   readonly "cell_delta": __TablesBase["cellDelta"];
   /** @deprecated Use `entityPos` instead. This alias will be removed in the next major version. */
   readonly "entity_pos": __TablesBase["entityPos"];
+  /** @deprecated Use `playerVitals` instead. This alias will be removed in the next major version. */
+  readonly "player_vitals": __TablesBase["playerVitals"];
   /** @deprecated Use `worldClock` instead. This alias will be removed in the next major version. */
   readonly "world_clock": __TablesBase["worldClock"];
   /** @deprecated Use `buildInfo` instead. This alias will be removed in the next major version. */

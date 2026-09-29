@@ -1,5 +1,5 @@
 import { content } from '@bastion/content'
-import { createGame, MS_PER_SECOND, TABLES } from '@bastion/core'
+import { bucketOf, createGame, MS_PER_SECOND, TABLES } from '@bastion/core'
 import { contentHash } from '@bastion/replay/format'
 import { describe, expect, it } from 'vitest'
 import { compareHosts } from './compare.ts'
@@ -18,6 +18,8 @@ const JOIN = JSON.stringify({
   command_nonce: nonce(undefined, 1),
   entity_seq: { deletes: [], inserts: [{ name: 'entity', next: 2 }] },
   entity: { deletes: [], inserts: [{ id: 1, kind: 'player', def: 'player', owner: ALICE, level: 1.0, faction: 'players' }] },
+  // The survival system gives the newcomer full meters (player.joined).
+  player_vitals: { deletes: [], inserts: [{ owner: ALICE, bucket: bucketOf(ALICE, 10), hp: 100.0, warmth: 100.0, food: 100.0 }] },
 })
 const MOVE = JSON.stringify({ command_nonce: nonce(1, 2), entity_input: { deletes: [], inserts: [{ id: 1, ix: 1.0, iy: 0.0, moving: true }] } })
 const REJOIN = JSON.stringify({ command_nonce: nonce(2, 3) })

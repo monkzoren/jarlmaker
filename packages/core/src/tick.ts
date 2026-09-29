@@ -15,6 +15,7 @@ import type { Game } from './game.ts'
 import { dispatch } from './dispatch.ts'
 import { entityTick } from './entity/tick.ts'
 import { advanceTick } from './kernel/clock.ts'
+import { survivalTick } from './survival/tick.ts'
 import { StepStore } from './kernel/step-store.ts'
 import { REGISTRY, type DispatchTable } from './registry.ts'
 import type { Store } from './store/types.ts'
@@ -38,6 +39,9 @@ export const SYSTEM_TICKS: readonly SystemTick[] = [
   // Movement integrates inputs first, so every later system reads this
   // tick's positions.
   entityTick,
+  // Survival reads where players now stand (heat from nearby fires) and may
+  // kill one, whose respawn the entity system handles in the dispatch.
+  survivalTick,
 ]
 
 export interface TickOptions {
