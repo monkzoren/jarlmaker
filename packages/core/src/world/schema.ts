@@ -40,6 +40,10 @@ export const worldTuning = z
     lakeLevel: z.number().min(0).max(1),
     /** No blocking prop grows within this many cells of the origin. */
     spawnClearCells: z.number().nonnegative(),
+    /** How far from a cell's centre a player may hit or build on it, cells. */
+    reachCells: z.number().positive(),
+    /** Ticks between two hits by one player. */
+    hitCooldownTicks: z.int().nonnegative(),
   })
   .refine((t) => t.originLevel >= 0 && t.originLevel < t.shoreLevel, {
     message: 'originLevel must lie on the beach, in [0, shoreLevel)',
@@ -90,6 +94,14 @@ export const propDef = z.object({
   blocks: z.boolean(),
   /** Cells covered, [w, h], from its anchor cell towards +x and +y. Flora props are 1×1. */
   footprint: z.tuple([z.int().positive(), z.int().positive()]),
+  /** Harvestable: each hit yields one `item`; after `hits` hits the prop becomes `leaves` ('' = nothing). 1x1 props only. */
+  harvest: z
+    .object({
+      item: z.string().min(1),
+      hits: z.int().positive(),
+      leaves: z.string(),
+    })
+    .optional(),
 })
 registerContent('props', propDef)
 

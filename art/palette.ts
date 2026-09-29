@@ -49,4 +49,8 @@ export const WORLD_PALETTE: Readonly<Record<string, string>> = {
   W: '#a39c88', // sail shadow / rope
   X: '#e0702a', // ember
   Y: '#3a3530', // raven black / hole
+  M: '#f4d06a', // flame core
+  N: '#f08a2c', // flame
+  O: '#c8421e', // flame edge
+  Z: '#ffe9a8', // spark
 }

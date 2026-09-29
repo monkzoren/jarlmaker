@@ -1,4 +1,4 @@
 {
   "extends": "../tsconfig.base.json",
-  "include": ["*.ts", "characters", "terrain", "props"]
+  "include": ["*.ts", "characters", "terrain", "props", "items"]
 }

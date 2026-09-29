@@ -51,6 +51,10 @@ export interface Play {
   frame(): RenderSnapshot
   /** Where the last frame drew the local player, in cells (the smoke suite reads it). */
   drawn(): { readonly x: number; readonly y: number } | undefined
+  /** The local player's drawn position (cells) and last predicted facing (radians), for targeting. */
+  pose(): { readonly x: number; readonly y: number; readonly facing: number } | undefined
+  /** The local player's entity id, once joined and in view. */
+  ownId(): string | undefined
 }
 
 interface Stick {
@@ -68,6 +72,7 @@ export function createPlay(deps: PlayDeps): Play {
   let heardAt: number | undefined
   let sampledClock = -1
   let last: RenderSnapshot | undefined
+  let facing = Math.PI / 2
 
   /** No server traffic for the grace period: the link may be dead before the reconnector knows it. */
   const quiet = (): boolean => heardAt !== undefined && now() - heardAt >= graceMs
@@ -116,7 +121,10 @@ export function createPlay(deps: PlayDeps): Play {
       if (quiet() || (droppedAt !== undefined && now() - droppedAt >= graceMs)) return
       const own = identity === undefined ? undefined : snapshot.playerPos(identity)
       const p = predictor.advance(own === undefined ? undefined : { tick: snapshot.clock, motion: own })
-      if (own !== undefined && p !== undefined) view.local(String(own.id), p, now())
+      if (own !== undefined && p !== undefined) {
+        view.local(String(own.id), p, now())
+        facing = p.motion.facing
+      }
     },
     frame() {
       const t = now()
@@ -132,6 +140,14 @@ export function createPlay(deps: PlayDeps): Play {
       const own = identity === undefined ? undefined : snapshot.playerPos(identity)
       const e = own === undefined ? undefined : last?.entities.find((r) => r.id === String(own.id))
       return e === undefined ? undefined : { x: e.x / TILE_PX, y: e.y / TILE_PX }
+    },
+    pose() {
+      const d = this.drawn()
+      return d === undefined ? undefined : { ...d, facing }
+    },
+    ownId() {
+      const own = identity === undefined ? undefined : snapshot.playerPos(identity)
+      return own === undefined ? undefined : String(own.id)
     },
   }
 }

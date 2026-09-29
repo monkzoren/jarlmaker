@@ -49,13 +49,16 @@ function integrate(m: Motion, input: MoveInput, dt: number, world: WorldView, kn
   }
 
   // Cell collision, one axis at a time, so a wall stops only the axis that hits it.
+  // An entity already inside a blocked cell (something was built on it) may
+  // move freely until it is out, so nothing can trap it.
+  const trapped = !world.walkable(cellOf(m.x), cellOf(m.y))
   let x = m.x + vx * dt
-  if (!world.walkable(cellOf(x), cellOf(m.y))) {
+  if (!trapped && !world.walkable(cellOf(x), cellOf(m.y))) {
     x = m.x
     vx = 0
   }
   let y = m.y + vy * dt
-  if (!world.walkable(cellOf(x), cellOf(y))) {
+  if (!trapped && !world.walkable(cellOf(x), cellOf(y))) {
     y = m.y
     vy = 0
   }

@@ -78,3 +78,5 @@ export {
 // Systems. Importing each registers its tables, commands, events and tuning.
 export * from './world/index.ts'
 export * from './entity/index.ts'
+export * from './items/index.ts'
+export * from './structures/index.ts'

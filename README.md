@@ -8,9 +8,15 @@ SpacetimeDB server. There is no offline mode. The codename is **bastion**:
 you will see it in package names (`@bastion/*`), table names, storage keys
 and the database name. "Jarlmaker" only appears where a player reads it.
 
-It is Phase 0: a sprite you move with WASD through the server, with
-client-side prediction and reconnect. The design and every rule are in
-[`CLAUDE.md`](CLAUDE.md).
+You wash up on a generated shore beside your wrecked longship. Chop pines
+and break rocks for wood and stone, and build a campfire. Everything runs
+through the server, with client-side prediction and silent reconnect. The
+design and every rule are in [`CLAUDE.md`](CLAUDE.md).
+
+**Controls:** WASD or arrows to walk; **Space** (or E) to chop what you face,
+hold to keep swinging; **B** to toggle build mode, then Space to place a
+campfire (5 wood, 3 stone); Esc leaves build mode. On a phone: drag anywhere
+to walk, and use the axe and campfire buttons.
 
 ## Prerequisites
 
@@ -43,7 +49,7 @@ pnpm --filter @bastion/client dev         # Vite on http://localhost:5173
 ```
 
 Open <http://localhost:5173/?profile=a>, click the page, and walk with
-**WASD** or the arrow keys. The pip in the top-left says
+**WASD** or the arrow keys (see Controls above). The pip in the top-left says
 `online as <identity> | 1 in view`.
 
 To see multiplayer, open <http://localhost:5173/?profile=b> in a second tab.

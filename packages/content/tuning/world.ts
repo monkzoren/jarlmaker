@@ -38,4 +38,11 @@ export const world = {
   lakeLevel: 0.74,
   // Nothing blocks you within 6 cells of where you wash up.
   spawnClearCells: 6,
+  // You can hit or build on a cell whose centre is within 1.8 cells: the
+  // cell you face while standing next to it, diagonals included, with a
+  // little slack for a sprite still settling.
+  reachCells: 1.8,
+  // Three hits a second at 10 Hz: brisk enough that felling a pine (3 hits)
+  // takes about a second, slow enough that mashing the button gains nothing.
+  hitCooldownTicks: 3,
 }
