@@ -2,6 +2,7 @@
 // players, a campfire every few players, within 2 ms per tick.
 
 import { describe, expect, it } from 'vitest'
+import { fastestTickMs } from '../budget.test-util.ts'
 import { entityTick } from '../entity/tick.ts'
 import { execute } from '../execute.ts'
 import { game, newStore } from '../entity/fixture.test-util.ts'
@@ -11,8 +12,6 @@ import './index.ts'
 
 const PLAYERS = 200
 const BUDGET_MS = 2
-const TICKS = 200
-const BATCHES = 5
 
 describe('survival tick budget', () => {
   it(`updates ${PLAYERS} players' meters alongside movement within ${BUDGET_MS} ms per tick`, () => {
@@ -27,12 +26,7 @@ describe('survival tick budget', () => {
     expect([...store.byIndex('player_vitals', 'by_bucket', 0)].length).toBeGreaterThan(0)
     const systems = [entityTick, survivalTick]
     for (let i = 0; i < 20; i++) tick(game, store, 100, { systems })
-    let perTick = Infinity
-    for (let b = 0; b < BATCHES; b++) {
-      const start = Date.now()
-      for (let i = 0; i < TICKS; i++) tick(game, store, 100, { systems })
-      perTick = Math.min(perTick, (Date.now() - start) / TICKS)
-    }
+    const perTick = fastestTickMs(() => tick(game, store, 100, { systems }))
     expect(perTick).toBeLessThan(BUDGET_MS)
   })
 })

@@ -3,6 +3,7 @@
 // the whole budget with every player walking.
 
 import { describe, expect, it } from 'vitest'
+import { fastestTickMs } from '../budget.test-util.ts'
 import { execute } from '../execute.ts'
 import { tick } from '../tick.ts'
 import { game, newStore } from './fixture.test-util.ts'
@@ -12,12 +13,6 @@ const PLAYERS = 200
 const DT = 100
 const BUDGET_MS = 2
 const WARMUP = 20
-// Measured over many ticks: Date.now() is ms-resolution (core has no DOM/node types).
-const TICKS = 200
-// The budget is checked against the fastest of several batches. Scheduler noise
-// on a shared runner only ever adds time, so the minimum is the closest reading
-// of the tick's real cost; a genuinely slow tick is slow in every batch.
-const BATCHES = 5
 
 describe('entity tick budget', () => {
   it(`moves ${PLAYERS} walking players within ${BUDGET_MS} ms per tick`, () => {
@@ -30,12 +25,7 @@ describe('entity tick budget', () => {
     }
     const systems = [entityTick]
     for (let i = 0; i < WARMUP; i += 1) tick(game, store, DT, { systems })
-    let perTick = Infinity
-    for (let b = 0; b < BATCHES; b += 1) {
-      const start = Date.now()
-      for (let i = 0; i < TICKS; i += 1) tick(game, store, DT, { systems })
-      perTick = Math.min(perTick, (Date.now() - start) / TICKS)
-    }
+    const perTick = fastestTickMs(() => tick(game, store, DT, { systems }))
     expect([...store.byIndex('entity_input', 'by_moving', true)]).toHaveLength(PLAYERS)
     expect(perTick).toBeLessThan(BUDGET_MS)
   })
